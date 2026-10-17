@@ -1,0 +1,1 @@
+"""Core cross-cutting concerns (auth/security, caching, config helpers)."""

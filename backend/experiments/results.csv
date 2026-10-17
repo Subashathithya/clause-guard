@@ -1,0 +1,71 @@
+id,category,expected_risk,predicted,correct,text
+pay_01,Payment,red,red,True,A non-refundable cancellation fee of 6 months' rent is charged regardless of reason for termination.
+pay_02,Payment,red,red,True,Late payment interest accrues at 5% per day compounded daily until the balance is cleared.
+pay_03,Payment,red,red,True,The company may charge the customer's card stored on file for any amount it deems necessary at its sole discretion.
+pay_04,Payment,yellow,red,False,The membership fee may increase at any time at the company's discretion without prior notice to the customer.
+pay_05,Payment,yellow,red,False,"Billing disputes must be raised within 7 days, after which all charges are deemed accepted by the customer."
+pay_06,Payment,yellow,red,False,A processing fee equal to 3% of the transaction total is applied to every refund requested by the customer.
+pay_07,Payment,green,green,True,All fees are itemised up front and the customer receives a full refund within 14 days of cancellation.
+pay_08,Payment,green,red,False,The security deposit is held separately and returned within 30 days less any itemised deductions.
+pay_09,Payment,green,green,True,Price changes require at least 30 days written notice and the customer may cancel before the increase takes effect.
+pay_10,Payment,green,green,True,No hidden or surprise fees may be charged; any ancillary cost is clearly stated in the initial agreement.
+renew_01,Auto-Renewal,red,red,True,The agreement renews automatically for successive 5-year terms unless the customer cancels 180 days in advance by certified mail.
+renew_02,Auto-Renewal,red,red,True,The company may terminate immediately at any time for any reason while the customer may only cancel after paying the full remaining term.
+renew_03,Auto-Renewal,red,red,True,The subscription renews automatically every month and termination is only possible by registered post sent to the head office.
+renew_04,Auto-Renewal,yellow,red,False,The contract renews automatically each year unless cancelled at least 60 days before the renewal date.
+renew_05,Auto-Renewal,yellow,red,False,Non-renewal notice must be delivered in person during business hours; email notice is not accepted.
+renew_06,Auto-Renewal,yellow,unknown,False,The agreement renews automatically and the renewal price may be up to 25% higher than the original term.
+renew_07,Auto-Renewal,green,unknown,False,Either party may terminate the agreement with 30 days written notice and no penalty or exit fee.
+renew_08,Auto-Renewal,green,unknown,False,The customer may cancel online at any time and is refunded pro-rata for unused services.
+renew_09,Auto-Renewal,green,unknown,False,"If the provider materially changes the terms, the customer may terminate without penalty within 30 days."
+renew_10,Auto-Renewal,green,unknown,False,The customer is sent a reminder at least 30 days before any automatic renewal takes effect.
+liab_01,Liability,red,unknown,False,The customer agrees to indemnify and hold the company harmless from all claims including those caused by the company's own negligence.
+liab_02,Liability,red,unknown,False,The customer waives all liability claims and the company's total liability is capped at 1 dollar regardless of any harm caused.
+liab_03,Liability,red,unknown,False,"The company is not liable for any injury to the member, even when caused by its own defective equipment."
+liab_04,Liability,yellow,unknown,False,The company's liability is limited to fees paid in the last 3 months and excludes all indirect and consequential damages.
+liab_05,Liability,yellow,unknown,False,Liability for damage caused by third parties acting on behalf of the company is excluded from this agreement.
+liab_06,Liability,yellow,unknown,False,"The customer must notify the company of any potential claim within 14 days, after which the claim is treated as lapsed."
+liab_07,Liability,green,unknown,False,Each party is liable only for its own negligence and liability between the parties is apportioned fairly.
+liab_08,Liability,green,unknown,False,The provider indemnifies the customer against third-party claims arising from the provider's breach of this agreement.
+liab_09,Liability,green,unknown,False,Statutory consumer rights and remedies available to the customer are not excluded or limited by this agreement.
+liab_10,Liability,green,unknown,False,"Fair wear and tear is excluded from coverage, and this limitation is clearly explained to the customer before signing."
+priv_01,Data Privacy,red,unknown,False,The company may collect biometric and health data and sell it to third-party advertisers without the customer's consent.
+priv_02,Data Privacy,red,unknown,False,The company disclaims all responsibility for any data breach and the customer waives all related claims.
+priv_03,Data Privacy,red,unknown,False,"The company may access, store and share the customer's private communications with marketing partners indefinitely."
+priv_04,Data Privacy,yellow,red,False,The company may share customer data with affiliates for marketing purposes unless the customer opts out in writing.
+priv_05,Data Privacy,yellow,unknown,False,Customer data may be retained indefinitely for business purposes and the privacy policy may change at any time without notice.
+priv_06,Data Privacy,yellow,unknown,False,Customer data is processed in countries with weaker data-protection laws than the customer's own jurisdiction.
+priv_07,Data Privacy,green,unknown,False,"Personal data is encrypted, never sold, and deleted within 30 days of account closure."
+priv_08,Data Privacy,green,unknown,False,"The customer may access, correct, export and delete their personal data at any time."
+priv_09,Data Privacy,green,unknown,False,Data is only collected for the purpose stated at sign-up and is not shared with third parties without consent.
+priv_10,Data Privacy,green,unknown,False,A data-protection contact and a clear procedure for reporting a breach are published and accessible to customers.
+disp_01,Dispute,red,unknown,False,All disputes must be resolved by binding arbitration in a foreign country and the customer waives all rights to a jury trial and class actions.
+disp_02,Dispute,red,unknown,False,"The customer must file any claim within 30 days of the dispute arising, after which the claim is barred forever."
+disp_03,Dispute,red,unknown,False,The dispute forum and the arbitrators are chosen exclusively by the company and consumers cannot recover any legal costs.
+disp_04,Dispute,yellow,unknown,False,"Disputes are resolved by arbitration chosen and paid for by the company, with only limited rights of appeal."
+disp_05,Dispute,yellow,unknown,False,All disputes are heard in the company's home state even when the customer lives and works elsewhere.
+disp_06,Dispute,yellow,unknown,False,Claims must be filed individually and the customer waives participation in any class proceeding against the company.
+disp_07,Dispute,green,unknown,False,The customer may bring claims in a court in their own jurisdiction and consumer rights are preserved in full.
+disp_08,Dispute,green,unknown,False,Disputes are first addressed through good-faith negotiation between the parties before any formal proceedings.
+disp_09,Dispute,green,unknown,False,Disputes are resolved by an independent consumer-arbitration body appointed by mutual agreement of the parties.
+disp_10,Dispute,green,unknown,False,Each party bears its own legal costs unless a claim is found to be frivolous or brought in bad faith.
+warr_01,Warranty,red,unknown,False,The product is provided with no warranty of any kind and the customer accepts it as-is with all faults.
+warr_02,Warranty,red,unknown,False,Any warranty claim must be made within 7 days of purchase and requires the product in its original unopened packaging.
+warr_03,Warranty,red,unknown,False,"The warranty is void if the product is opened or used, and all repairs are available only at the customer's expense."
+warr_04,Warranty,yellow,unknown,False,The warranty covers repair only and requires the customer to ship the product to the service centre at their own cost.
+warr_05,Warranty,yellow,unknown,False,Warranty claims are reviewed within 60 days and replacement stock is provided only when available at the time.
+warr_06,Warranty,yellow,unknown,False,The warranty lasts only 3 months and does not cover batteries or any component subject to normal use.
+warr_07,Warranty,green,green,True,The product is covered by a 24-month limited warranty against defects in materials and workmanship.
+warr_08,Warranty,green,unknown,False,The warranty covers the cost of replacement parts and repair labour for the entire warranty period.
+warr_09,Warranty,green,unknown,False,"If a warranted defect cannot be repaired, the consumer receives a replacement unit or a full refund."
+warr_10,Warranty,green,unknown,False,"Statutory consumer rights are in addition to, and not limited by, the terms of this warranty."
+oth_01,Other,red,unknown,False,"The company may change any term of this agreement at any time by updating a web page, and continued use constitutes acceptance."
+oth_02,Other,red,unknown,False,"All content, inventions and data created by the customer become the exclusive perpetual property of the company."
+oth_03,Other,red,unknown,False,The company may modify this agreement at any time without notice and any change applies retroactively to past usage.
+oth_04,Other,yellow,unknown,False,The company receives a worldwide licence to use customer content to improve its services and products.
+oth_05,Other,yellow,unknown,False,Amendments to this agreement are binding once posted online and the customer is responsible for checking for updates.
+oth_06,Other,yellow,unknown,False,The customer may assign their rights under this agreement only with written consent while the company may assign freely.
+oth_07,Other,green,unknown,False,The customer retains ownership of all content they upload and may export or delete it at any time.
+oth_08,Other,green,unknown,False,Any provision held invalid will be modified to the minimum extent necessary to make it enforceable.
+oth_09,Other,green,unknown,False,"Either party may assign this agreement only with the other party's written consent, which shall not be unreasonably withheld."
+oth_10,Other,green,unknown,False,The parties confirm they have had the opportunity to obtain independent legal advice before signing this agreement.

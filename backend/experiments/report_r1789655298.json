@@ -1,0 +1,100 @@
+{
+  "cases": 5,
+  "correct": 3,
+  "accuracy": 60.0,
+  "per_class": {
+    "red": {
+      "precision": 60.0,
+      "recall": 100.0,
+      "f1": 75.0,
+      "support": 3
+    },
+    "yellow": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 2
+    },
+    "green": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0
+    }
+  },
+  "per_category": {
+    "Payment": {
+      "accuracy": 60.0,
+      "correct": 3,
+      "total": 5
+    }
+  },
+  "confusion_matrix": {
+    "red": {
+      "red": 3,
+      "yellow": 0,
+      "green": 0
+    },
+    "yellow": {
+      "red": 2,
+      "yellow": 0,
+      "green": 0
+    },
+    "green": {
+      "red": 0,
+      "yellow": 0,
+      "green": 0
+    }
+  },
+  "rows": [
+    {
+      "id": "pay_01",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "A non-refundable cancellation fee of 6 months' rent is charged regardless of reason for termination.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_02",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "Late payment interest accrues at 5% per day compounded daily until the balance is cleared.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_03",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "The company may charge the customer's card stored on file for any amount it deems necessary at its sole discretion.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_04",
+      "category": "Payment",
+      "expected_risk": "yellow",
+      "text": "The membership fee may increase at any time at the company's discretion without prior notice to the customer.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "pay_05",
+      "category": "Payment",
+      "expected_risk": "yellow",
+      "text": "Billing disputes must be raised within 7 days, after which all charges are deemed accepted by the customer.",
+      "predicted": "red",
+      "correct": false
+    }
+  ],
+  "runtime_seconds": 36.3,
+  "llm_calls": 20,
+  "prompt_chars": 17672,
+  "est_tokens": 4418,
+  "est_cost_usd": 0.009,
+  "cost_caveat": "tokens approximated at 4 chars/token; price per 1k tokens set in harness.",
+  "mode": "WITH-RAG",
+  "timestamp": 1789655298.5682533,
+  "llm_model": "openai/gpt-oss-120b"
+}

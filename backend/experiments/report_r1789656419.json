@@ -1,0 +1,650 @@
+{
+  "cases": 70,
+  "correct": 48,
+  "accuracy": 68.57,
+  "per_class": {
+    "red": {
+      "precision": 55.3,
+      "recall": 100.0,
+      "f1": 71.2,
+      "support": 21
+    },
+    "yellow": {
+      "precision": 50.0,
+      "recall": 23.8,
+      "f1": 32.3,
+      "support": 21
+    },
+    "green": {
+      "precision": 100.0,
+      "recall": 78.6,
+      "f1": 88.0,
+      "support": 28
+    }
+  },
+  "per_category": {
+    "Payment": {
+      "accuracy": 70.0,
+      "correct": 7,
+      "total": 10
+    },
+    "Auto-Renewal": {
+      "accuracy": 90.0,
+      "correct": 9,
+      "total": 10
+    },
+    "Liability": {
+      "accuracy": 50.0,
+      "correct": 5,
+      "total": 10
+    },
+    "Data Privacy": {
+      "accuracy": 80.0,
+      "correct": 8,
+      "total": 10
+    },
+    "Dispute": {
+      "accuracy": 40.0,
+      "correct": 4,
+      "total": 10
+    },
+    "Warranty": {
+      "accuracy": 80.0,
+      "correct": 8,
+      "total": 10
+    },
+    "Other": {
+      "accuracy": 70.0,
+      "correct": 7,
+      "total": 10
+    }
+  },
+  "confusion_matrix": {
+    "red": {
+      "red": 21,
+      "yellow": 0,
+      "green": 0
+    },
+    "yellow": {
+      "red": 16,
+      "yellow": 5,
+      "green": 0
+    },
+    "green": {
+      "green": 22,
+      "yellow": 5,
+      "red": 1
+    }
+  },
+  "rows": [
+    {
+      "id": "pay_01",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "A non-refundable cancellation fee of 6 months' rent is charged regardless of reason for termination.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_02",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "Late payment interest accrues at 5% per day compounded daily until the balance is cleared.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_03",
+      "category": "Payment",
+      "expected_risk": "red",
+      "text": "The company may charge the customer's card stored on file for any amount it deems necessary at its sole discretion.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "pay_04",
+      "category": "Payment",
+      "expected_risk": "yellow",
+      "text": "The membership fee may increase at any time at the company's discretion without prior notice to the customer.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "pay_05",
+      "category": "Payment",
+      "expected_risk": "yellow",
+      "text": "Billing disputes must be raised within 7 days, after which all charges are deemed accepted by the customer.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "pay_06",
+      "category": "Payment",
+      "expected_risk": "yellow",
+      "text": "A processing fee equal to 3% of the transaction total is applied to every refund requested by the customer.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "pay_07",
+      "category": "Payment",
+      "expected_risk": "green",
+      "text": "All fees are itemised up front and the customer receives a full refund within 14 days of cancellation.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "pay_08",
+      "category": "Payment",
+      "expected_risk": "green",
+      "text": "The security deposit is held separately and returned within 30 days less any itemised deductions.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "pay_09",
+      "category": "Payment",
+      "expected_risk": "green",
+      "text": "Price changes require at least 30 days written notice and the customer may cancel before the increase takes effect.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "pay_10",
+      "category": "Payment",
+      "expected_risk": "green",
+      "text": "No hidden or surprise fees may be charged; any ancillary cost is clearly stated in the initial agreement.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "renew_01",
+      "category": "Auto-Renewal",
+      "expected_risk": "red",
+      "text": "The agreement renews automatically for successive 5-year terms unless the customer cancels 180 days in advance by certified mail.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "renew_02",
+      "category": "Auto-Renewal",
+      "expected_risk": "red",
+      "text": "The company may terminate immediately at any time for any reason while the customer may only cancel after paying the full remaining term.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "renew_03",
+      "category": "Auto-Renewal",
+      "expected_risk": "red",
+      "text": "The subscription renews automatically every month and termination is only possible by registered post sent to the head office.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "renew_04",
+      "category": "Auto-Renewal",
+      "expected_risk": "yellow",
+      "text": "The contract renews automatically each year unless cancelled at least 60 days before the renewal date.",
+      "predicted": "yellow",
+      "correct": true
+    },
+    {
+      "id": "renew_05",
+      "category": "Auto-Renewal",
+      "expected_risk": "yellow",
+      "text": "Non-renewal notice must be delivered in person during business hours; email notice is not accepted.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "renew_06",
+      "category": "Auto-Renewal",
+      "expected_risk": "yellow",
+      "text": "The agreement renews automatically and the renewal price may be up to 25% higher than the original term.",
+      "predicted": "yellow",
+      "correct": true
+    },
+    {
+      "id": "renew_07",
+      "category": "Auto-Renewal",
+      "expected_risk": "green",
+      "text": "Either party may terminate the agreement with 30 days written notice and no penalty or exit fee.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "renew_08",
+      "category": "Auto-Renewal",
+      "expected_risk": "green",
+      "text": "The customer may cancel online at any time and is refunded pro-rata for unused services.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "renew_09",
+      "category": "Auto-Renewal",
+      "expected_risk": "green",
+      "text": "If the provider materially changes the terms, the customer may terminate without penalty within 30 days.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "renew_10",
+      "category": "Auto-Renewal",
+      "expected_risk": "green",
+      "text": "The customer is sent a reminder at least 30 days before any automatic renewal takes effect.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "liab_01",
+      "category": "Liability",
+      "expected_risk": "red",
+      "text": "The customer agrees to indemnify and hold the company harmless from all claims including those caused by the company's own negligence.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "liab_02",
+      "category": "Liability",
+      "expected_risk": "red",
+      "text": "The customer waives all liability claims and the company's total liability is capped at 1 dollar regardless of any harm caused.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "liab_03",
+      "category": "Liability",
+      "expected_risk": "red",
+      "text": "The company is not liable for any injury to the member, even when caused by its own defective equipment.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "liab_04",
+      "category": "Liability",
+      "expected_risk": "yellow",
+      "text": "The company's liability is limited to fees paid in the last 3 months and excludes all indirect and consequential damages.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "liab_05",
+      "category": "Liability",
+      "expected_risk": "yellow",
+      "text": "Liability for damage caused by third parties acting on behalf of the company is excluded from this agreement.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "liab_06",
+      "category": "Liability",
+      "expected_risk": "yellow",
+      "text": "The customer must notify the company of any potential claim within 14 days, after which the claim is treated as lapsed.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "liab_07",
+      "category": "Liability",
+      "expected_risk": "green",
+      "text": "Each party is liable only for its own negligence and liability between the parties is apportioned fairly.",
+      "predicted": "yellow",
+      "correct": false
+    },
+    {
+      "id": "liab_08",
+      "category": "Liability",
+      "expected_risk": "green",
+      "text": "The provider indemnifies the customer against third-party claims arising from the provider's breach of this agreement.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "liab_09",
+      "category": "Liability",
+      "expected_risk": "green",
+      "text": "Statutory consumer rights and remedies available to the customer are not excluded or limited by this agreement.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "liab_10",
+      "category": "Liability",
+      "expected_risk": "green",
+      "text": "Fair wear and tear is excluded from coverage, and this limitation is clearly explained to the customer before signing.",
+      "predicted": "yellow",
+      "correct": false
+    },
+    {
+      "id": "priv_01",
+      "category": "Data Privacy",
+      "expected_risk": "red",
+      "text": "The company may collect biometric and health data and sell it to third-party advertisers without the customer's consent.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "priv_02",
+      "category": "Data Privacy",
+      "expected_risk": "red",
+      "text": "The company disclaims all responsibility for any data breach and the customer waives all related claims.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "priv_03",
+      "category": "Data Privacy",
+      "expected_risk": "red",
+      "text": "The company may access, store and share the customer's private communications with marketing partners indefinitely.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "priv_04",
+      "category": "Data Privacy",
+      "expected_risk": "yellow",
+      "text": "The company may share customer data with affiliates for marketing purposes unless the customer opts out in writing.",
+      "predicted": "yellow",
+      "correct": true
+    },
+    {
+      "id": "priv_05",
+      "category": "Data Privacy",
+      "expected_risk": "yellow",
+      "text": "Customer data may be retained indefinitely for business purposes and the privacy policy may change at any time without notice.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "priv_06",
+      "category": "Data Privacy",
+      "expected_risk": "yellow",
+      "text": "Customer data is processed in countries with weaker data-protection laws than the customer's own jurisdiction.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "priv_07",
+      "category": "Data Privacy",
+      "expected_risk": "green",
+      "text": "Personal data is encrypted, never sold, and deleted within 30 days of account closure.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "priv_08",
+      "category": "Data Privacy",
+      "expected_risk": "green",
+      "text": "The customer may access, correct, export and delete their personal data at any time.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "priv_09",
+      "category": "Data Privacy",
+      "expected_risk": "green",
+      "text": "Data is only collected for the purpose stated at sign-up and is not shared with third parties without consent.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "priv_10",
+      "category": "Data Privacy",
+      "expected_risk": "green",
+      "text": "A data-protection contact and a clear procedure for reporting a breach are published and accessible to customers.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "disp_01",
+      "category": "Dispute",
+      "expected_risk": "red",
+      "text": "All disputes must be resolved by binding arbitration in a foreign country and the customer waives all rights to a jury trial and class actions.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "disp_02",
+      "category": "Dispute",
+      "expected_risk": "red",
+      "text": "The customer must file any claim within 30 days of the dispute arising, after which the claim is barred forever.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "disp_03",
+      "category": "Dispute",
+      "expected_risk": "red",
+      "text": "The dispute forum and the arbitrators are chosen exclusively by the company and consumers cannot recover any legal costs.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "disp_04",
+      "category": "Dispute",
+      "expected_risk": "yellow",
+      "text": "Disputes are resolved by arbitration chosen and paid for by the company, with only limited rights of appeal.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "disp_05",
+      "category": "Dispute",
+      "expected_risk": "yellow",
+      "text": "All disputes are heard in the company's home state even when the customer lives and works elsewhere.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "disp_06",
+      "category": "Dispute",
+      "expected_risk": "yellow",
+      "text": "Claims must be filed individually and the customer waives participation in any class proceeding against the company.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "disp_07",
+      "category": "Dispute",
+      "expected_risk": "green",
+      "text": "The customer may bring claims in a court in their own jurisdiction and consumer rights are preserved in full.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "disp_08",
+      "category": "Dispute",
+      "expected_risk": "green",
+      "text": "Disputes are first addressed through good-faith negotiation between the parties before any formal proceedings.",
+      "predicted": "yellow",
+      "correct": false
+    },
+    {
+      "id": "disp_09",
+      "category": "Dispute",
+      "expected_risk": "green",
+      "text": "Disputes are resolved by an independent consumer-arbitration body appointed by mutual agreement of the parties.",
+      "predicted": "yellow",
+      "correct": false
+    },
+    {
+      "id": "disp_10",
+      "category": "Dispute",
+      "expected_risk": "green",
+      "text": "Each party bears its own legal costs unless a claim is found to be frivolous or brought in bad faith.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "warr_01",
+      "category": "Warranty",
+      "expected_risk": "red",
+      "text": "The product is provided with no warranty of any kind and the customer accepts it as-is with all faults.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "warr_02",
+      "category": "Warranty",
+      "expected_risk": "red",
+      "text": "Any warranty claim must be made within 7 days of purchase and requires the product in its original unopened packaging.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "warr_03",
+      "category": "Warranty",
+      "expected_risk": "red",
+      "text": "The warranty is void if the product is opened or used, and all repairs are available only at the customer's expense.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "warr_04",
+      "category": "Warranty",
+      "expected_risk": "yellow",
+      "text": "The warranty covers repair only and requires the customer to ship the product to the service centre at their own cost.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "warr_05",
+      "category": "Warranty",
+      "expected_risk": "yellow",
+      "text": "Warranty claims are reviewed within 60 days and replacement stock is provided only when available at the time.",
+      "predicted": "yellow",
+      "correct": true
+    },
+    {
+      "id": "warr_06",
+      "category": "Warranty",
+      "expected_risk": "yellow",
+      "text": "The warranty lasts only 3 months and does not cover batteries or any component subject to normal use.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "warr_07",
+      "category": "Warranty",
+      "expected_risk": "green",
+      "text": "The product is covered by a 24-month limited warranty against defects in materials and workmanship.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "warr_08",
+      "category": "Warranty",
+      "expected_risk": "green",
+      "text": "The warranty covers the cost of replacement parts and repair labour for the entire warranty period.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "warr_09",
+      "category": "Warranty",
+      "expected_risk": "green",
+      "text": "If a warranted defect cannot be repaired, the consumer receives a replacement unit or a full refund.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "warr_10",
+      "category": "Warranty",
+      "expected_risk": "green",
+      "text": "Statutory consumer rights are in addition to, and not limited by, the terms of this warranty.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "oth_01",
+      "category": "Other",
+      "expected_risk": "red",
+      "text": "The company may change any term of this agreement at any time by updating a web page, and continued use constitutes acceptance.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "oth_02",
+      "category": "Other",
+      "expected_risk": "red",
+      "text": "All content, inventions and data created by the customer become the exclusive perpetual property of the company.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "oth_03",
+      "category": "Other",
+      "expected_risk": "red",
+      "text": "The company may modify this agreement at any time without notice and any change applies retroactively to past usage.",
+      "predicted": "red",
+      "correct": true
+    },
+    {
+      "id": "oth_04",
+      "category": "Other",
+      "expected_risk": "yellow",
+      "text": "The company receives a worldwide licence to use customer content to improve its services and products.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "oth_05",
+      "category": "Other",
+      "expected_risk": "yellow",
+      "text": "Amendments to this agreement are binding once posted online and the customer is responsible for checking for updates.",
+      "predicted": "red",
+      "correct": false
+    },
+    {
+      "id": "oth_06",
+      "category": "Other",
+      "expected_risk": "yellow",
+      "text": "The customer may assign their rights under this agreement only with written consent while the company may assign freely.",
+      "predicted": "yellow",
+      "correct": true
+    },
+    {
+      "id": "oth_07",
+      "category": "Other",
+      "expected_risk": "green",
+      "text": "The customer retains ownership of all content they upload and may export or delete it at any time.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "oth_08",
+      "category": "Other",
+      "expected_risk": "green",
+      "text": "Any provision held invalid will be modified to the minimum extent necessary to make it enforceable.",
+      "predicted": "yellow",
+      "correct": false
+    },
+    {
+      "id": "oth_09",
+      "category": "Other",
+      "expected_risk": "green",
+      "text": "Either party may assign this agreement only with the other party's written consent, which shall not be unreasonably withheld.",
+      "predicted": "green",
+      "correct": true
+    },
+    {
+      "id": "oth_10",
+      "category": "Other",
+      "expected_risk": "green",
+      "text": "The parties confirm they have had the opportunity to obtain independent legal advice before signing this agreement.",
+      "predicted": "green",
+      "correct": true
+    }
+  ],
+  "runtime_seconds": 1106.0,
+  "llm_calls": 262,
+  "prompt_chars": 228594,
+  "est_tokens": 57148,
+  "est_cost_usd": 0.114,
+  "cost_caveat": "tokens approximated at 4 chars/token; price per 1k tokens set in harness.",
+  "mode": "WITH-RAG",
+  "timestamp": 1789656419.346214,
+  "llm_model": "openai/gpt-oss-120b"
+}

@@ -1,0 +1,39 @@
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.env
+backend/*.pyc
+backend/*.log
+backend/chroma_db/
+backend/data/*.sqlite3
+
+# Frontend
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.*.local
+frontend/build/
+frontend/*.log
+*.bak
+
+# Android (Capacitor / Gradle)
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/local.properties
+frontend/android/**/build/
+
+# Signing — NEVER commit
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

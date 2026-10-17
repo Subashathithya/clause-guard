@@ -1,0 +1,29 @@
+{
+  "short_name": "ClauseGuard",
+  "name": "ClauseGuard — Contract & Terms Analyzer",
+  "description": "Understand contracts and terms in plain English: clause breakdown, risk scoring, cross-clause insights, version comparison, and an AI assistant.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4f46e5",
+  "background_color": "#f6f7fb"
+}

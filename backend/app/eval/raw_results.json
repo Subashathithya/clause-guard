@@ -1,0 +1,410 @@
+{
+  "full": {
+    "dataset": "C:\\Users\\ASUS\\OneDrive\\Desktop\\clasueguard - Copy\\backend\\app\\eval\\dataset.jsonl",
+    "mode": "hermetic(semantic=None)",
+    "n_cases": 29,
+    "elapsed_sec": 0.003,
+    "efficiency": {
+      "llm_calls": 0,
+      "candidate_pairs": 26,
+      "matched_pairs": 29,
+      "ambiguous_pairs": 2,
+      "semantic_pairs_scanned": 0
+    },
+    "value_change_accuracy": {
+      "hits": 0,
+      "total": 16,
+      "accuracy": 0.0
+    },
+    "classification": {
+      "added": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 3,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "modified": {
+        "tp": 16,
+        "fp": 6,
+        "fn": 2,
+        "precision": 0.7273,
+        "recall": 0.8889,
+        "f1": 0.8
+      },
+      "removed": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "unchanged": {
+        "tp": 4,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.8,
+        "recall": 1.0,
+        "f1": 0.8889
+      },
+      "_micro": {
+        "precision": 0.7407,
+        "recall": 0.6897,
+        "f1": 0.7143
+      }
+    },
+    "per_case": [
+      {
+        "case": "golden-30-to-60",
+        "gold": "modified",
+        "pred": "ambiguous"
+      },
+      {
+        "case": "modified-termination-a1b1",
+        "gold": "modified",
+        "pred": "ambiguous"
+      },
+      {
+        "case": "modified-termination-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-dispute-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-insurance-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-dataprotection-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-fee-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-compliance-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-delivery-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-obligation-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-condition-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-assignability-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-scope-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "unchanged-termination-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-confidentiality-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-governinglaw-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-notice-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "added-indemnification-a1b1",
+        "gold": "added",
+        "pred": "modified"
+      },
+      {
+        "case": "added-renewal-a1b1",
+        "gold": "added",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-noncompete-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-confidentiality-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-payment-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-governinglaw-a1b1",
+        "gold": "removed",
+        "pred": "unchanged"
+      },
+      {
+        "case": "added-miscellaneous-x1y1",
+        "gold": "added",
+        "pred": "modified"
+      }
+    ]
+  },
+  "ablation": {
+    "dataset": "C:\\Users\\ASUS\\OneDrive\\Desktop\\clasueguard - Copy\\backend\\app\\eval\\dataset.jsonl",
+    "mode": "hermetic(semantic=None)",
+    "n_cases": 29,
+    "elapsed_sec": 0.0022,
+    "efficiency": {
+      "llm_calls": 0,
+      "candidate_pairs": 26,
+      "matched_pairs": 29,
+      "ambiguous_pairs": 2,
+      "semantic_pairs_scanned": 0
+    },
+    "value_change_accuracy": {
+      "hits": 0,
+      "total": 16,
+      "accuracy": 0.0
+    },
+    "classification": {
+      "added": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 3,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "modified": {
+        "tp": 16,
+        "fp": 6,
+        "fn": 2,
+        "precision": 0.7273,
+        "recall": 0.8889,
+        "f1": 0.8
+      },
+      "removed": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "unchanged": {
+        "tp": 4,
+        "fp": 1,
+        "fn": 0,
+        "precision": 0.8,
+        "recall": 1.0,
+        "f1": 0.8889
+      },
+      "_micro": {
+        "precision": 0.7407,
+        "recall": 0.6897,
+        "f1": 0.7143
+      }
+    },
+    "per_case": [
+      {
+        "case": "golden-30-to-60",
+        "gold": "modified",
+        "pred": "ambiguous"
+      },
+      {
+        "case": "modified-termination-a1b1",
+        "gold": "modified",
+        "pred": "ambiguous"
+      },
+      {
+        "case": "modified-termination-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-dispute-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-insurance-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-payment-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-dataprotection-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-fee-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-compliance-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-delivery-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-obligation-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-condition-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-assignability-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "modified-scope-a1b1",
+        "gold": "modified",
+        "pred": "modified"
+      },
+      {
+        "case": "unchanged-termination-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-confidentiality-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-governinglaw-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "unchanged-notice-a1b1",
+        "gold": "unchanged",
+        "pred": "unchanged"
+      },
+      {
+        "case": "added-indemnification-a1b1",
+        "gold": "added",
+        "pred": "modified"
+      },
+      {
+        "case": "added-renewal-a1b1",
+        "gold": "added",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-noncompete-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-confidentiality-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-payment-a1b1",
+        "gold": "removed",
+        "pred": "modified"
+      },
+      {
+        "case": "removed-governinglaw-a1b1",
+        "gold": "removed",
+        "pred": "unchanged"
+      },
+      {
+        "case": "added-miscellaneous-x1y1",
+        "gold": "added",
+        "pred": "modified"
+      }
+    ]
+  }
+}

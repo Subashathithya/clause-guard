@@ -1,0 +1,35 @@
+# Render Blueprint for the ClauseGuard FastAPI backend.
+# Deploy: push this repo to GitHub, then in Render "New +" -> "Blueprint" and
+# pick this file. Set the secret env vars (GROQ_API_KEY, JWT_SECRET) in the
+# dashboard when prompted.
+services:
+  - type: web
+    name: clauseguard-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PRIMARY_MODEL
+        value: openai/gpt-oss-120b
+      - key: FAST_MODEL
+        value: openai/gpt-oss-20b
+      - key: CHAT_MIN_SIMILARITY
+        value: "0.25"
+      - key: AUTO_RECONCILE_VECTOR_STORE
+        value: "true"
+      - key: REQUIRE_AUTH
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      # Optional: use PostgreSQL instead of the ephemeral SQLite file.
+      # - key: DATABASE_URL
+      #   sync: false
+    disk:
+      name: clauseguard-data
+      mountPath: /app/chroma_db
+      sizeGB: 1
