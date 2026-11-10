@@ -29,8 +29,12 @@ class ChromaStore:
     """Local persistent ChromaDB store using all-MiniLM-L6-v2 embeddings."""
 
     def __init__(self, data_dir: Optional[str] = None) -> None:
-        absolute = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.data_dir = data_dir or os.path.join(absolute, "data")
+        # chroma_store.py lives at backend/app/stores/, so the data directory is
+        # three levels up (backend/data) — matching app.db.DATA_DIR.
+        backend_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        self.data_dir = data_dir or os.path.join(backend_dir, "data")
         self._client: Optional[chromadb.ClientAPI] = None
         self._embed_fn = None
 
@@ -87,17 +91,47 @@ class ChromaStore:
         """Names whose space is NOT cosine (missing/migrated/silent-default l2)."""
         return [name for name, space in self.collection_spaces().items() if space != "cosine"]
 
-    def drop_collections(self, names: list[str]) -> None:
+    def _known_collections(self) -> tuple[str, str, str, str]:
+        return (
+            settings.CLAUSE_COLLECTION,
+            settings.DOCS_COLLECTION,
+            settings.FAIR_COLLECTION,
+            "analyses",
+        )
+
+    def ensure_collections(self) -> None:
+        """Create every collection (with the cosine space) if it is missing."""
+        for name in self._known_collections():
+            self._collection(name)
+
+    def reconcile_vector_store(self) -> list[str]:
+        """Migrate non-cosine collections in place; returns the migrated names."""
+        migrated = self.collections_need_migration()
+        if migrated:
+            self.recreate_collections(migrated)
+        return migrated
+
+    def drop_collections(self, names: Optional[list[str]] = None) -> None:
+        """Delete collections (all known ones when ``names`` is omitted)."""
         client = self.get_chroma()
-        for name in names:
+        for name in names if names is not None else self._known_collections():
             try:
                 client.delete_collection(name=name)
             except Exception:  # noqa: BLE001 - already gone
                 pass
 
+    def recreate_collection(self, name: str) -> None:
+        """Recreate a single collection on the cosine space (empty)."""
+        self.recreate_collections([name])
+
     def recreate_collections(self, names: list[str]) -> None:
         """Recreate with cosine space (empty). Callers re-seed/re-index."""
+        client = self.get_chroma()
         for name in names:
+            try:
+                client.delete_collection(name=name)
+            except Exception:  # noqa: BLE001 - may not exist yet
+                pass
             self._collection(name)
 
     def clause_collection(self):
@@ -150,6 +184,35 @@ class ChromaStore:
             ],
         )
         return len(chunks)
+
+    def index_clause(
+        self,
+        *,
+        document_name: str,
+        document_id: str,
+        clause_id: str,
+        clause_text: str,
+        category: str = "",
+    ) -> None:
+        """Index a single analysed clause for clause-level retrieval.
+
+        Document chunks (``index_document``) power whole-document chat; this
+        clause-level record lets retrieval cite an exact ``clause_id``.
+        """
+        if not clause_text.strip():
+            return
+        self.clause_collection().upsert(
+            ids=[f"{document_id}__{clause_id}"],
+            documents=[clause_text],
+            metadatas=[
+                {
+                    "document_id": document_id,
+                    "document_name": document_name,
+                    "clause_id": clause_id,
+                    "category": category,
+                }
+            ],
+        )
 
     def save_analysis(self, document_id: str, document_name: str, analysis: dict) -> None:
         self.analyses_collection().upsert(
@@ -213,20 +276,35 @@ class ChromaStore:
 
     # --------------------------------------------------------------- RAG
     def retrieve_context(
-        self, question: str, document_ids: Optional[list[str]] = None, top_k: int = 6
+        self,
+        question: str,
+        document_ids: Optional[list[str]] = None,
+        top_k: int = 6,
+        show_similarity: bool = False,
     ) -> list[dict]:
-        where = {"document_id": {"$in": document_ids}} if document_ids else None
+        """Semantic search over indexed document chunks.
+
+        ``document_ids=None`` searches everything; an *empty list* searches
+        nothing (callers often pass the caller's visible-document set, and an
+        empty set must never silently become a global search).
+        """
+        if document_ids is not None and len(document_ids) == 0:
+            return []
+        where = {"document_id": {"$in": list(document_ids)}} if document_ids is not None else None
         res = self.clause_collection().query(query_texts=[question], n_results=top_k, where=where)
         documents = res.get("documents", [[]])[0]
         metadatas = res.get("metadatas", [[]])[0]
         distances = res.get("distances", [[]])[0]
         out = []
         for doc, meta, dist in zip(documents, metadatas, distances):
+            meta = meta or {}
             out.append(
                 {
                     "text": doc,
-                    "document_id": (meta or {}).get("document_id", ""),
-                    "document_name": (meta or {}).get("document_name", "Unknown"),
+                    "document_id": meta.get("document_id", ""),
+                    "document_name": meta.get("document_name", "Unknown"),
+                    "clause_id": meta.get("clause_id", ""),
+                    "category": meta.get("category", ""),
                     "similarity": round(max(0.0, 1.0 - float(dist)), 3),
                 }
             )

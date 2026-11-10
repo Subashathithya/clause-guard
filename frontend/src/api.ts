@@ -21,7 +21,7 @@ export const MOBILE_API_URL = 'https://YOUR-DEPLOYED-BACKEND.example.com';
 export const API_URL =
   Capacitor.isNativePlatform()
     ? process.env.REACT_APP_API_URL_MOBILE || MOBILE_API_URL
-    : process.env.REACT_APP_API_URL || 'http://localhost:8011';
+    : process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
 
 const TOKEN_KEY = 'clauseguard_token';
 

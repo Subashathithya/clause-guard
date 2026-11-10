@@ -150,15 +150,14 @@ def test_retrieval_empty_requested_scope_never_global(vector_store, monkeypatch)
 def test_chat_refuses_without_context(app_client, monkeypatch):
     """No relevant retrieval => NO_CONTEXT refusal + empty sources (never an
     ungrounded 'general answer' presented as contract findings)."""
-    from app.llm import chat
-    from app.settings import settings
+    from app.api.routes import chat as chat_route
 
     def fake_chat(messages, **kwargs):  # pragma: no cover
         raise AssertionError("LLM must not be called when there is no context")
 
-    monkeypatch.setattr("app.llm.chat", fake_chat)
+    monkeypatch.setattr(chat_route, "chat", fake_chat)
     resp = app_client.post(
-        "/api/chat",
+        "/chat",
         json={
             "question": "What is the renewal period?",
             "document_ids": [],
@@ -176,14 +175,14 @@ def test_chat_refuses_without_context(app_client, monkeypatch):
 def test_chat_refuses_unknown_document_scoped(app_client, monkeypatch):
     """Asking only for documents the caller cannot see => NO_CONTEXT, and the
     LLM is never invoked (no fabrication, no global-corpus fallback)."""
-    from app.llm import chat
+    from app.api.routes import chat as chat_route
 
     def fake_chat(messages, **kwargs):  # pragma: no cover
         raise AssertionError("LLM must not be called")
 
-    monkeypatch.setattr("app.llm.chat", fake_chat)
+    monkeypatch.setattr(chat_route, "chat", fake_chat)
     resp = app_client.post(
-        "/api/chat",
+        "/chat",
         json={
             "question": "What does section 4 say?",
             "document_ids": ["doc_that_does_not_exist"],
@@ -198,33 +197,46 @@ def test_chat_refuses_unknown_document_scoped(app_client, monkeypatch):
 def test_chat_grounded_answer_includes_sources(app_client, monkeypatch):
     """With evidence present the chat answers grounded: answer + sources that
     reference the exact supporting clauses (never a blank/unsupported cite)."""
-    from app.llm import chat
-    from app.agents.orchestrator import Orchestrator
+    from app.api.routes import chat as chat_route
 
-    calls = []
+    grounded_answer = "This agreement renews automatically for successive 12-month periods."
 
-    def fake_orchestrator_run(text, document_name):
-        # deterministic: one clause, fully supported by evidence
-        result = Orchestrator().run(text, document_name) if False else None
-        return result
-
-    def fake_chat(messages, **kwargs):
-        calls.append(messages)
-        return "This agreement renews automatically for successive 12-month periods."
-
-    monkeypatch.setattr("app.llm.chat", fake_chat出一个)
+    monkeypatch.setattr(
+        chat_route, "chat", lambda messages, **kwargs: grounded_answer
+    )
+    monkeypatch.setattr(
+        chat_route.contract_service,
+        "visible_document_ids",
+        lambda db, user: ["doc_grounded"],
+    )
+    monkeypatch.setattr(
+        chat_route.vdb,
+        "retrieve_context",
+        lambda question, document_ids=None, **kwargs: [
+            {
+                "text": "The agreement renews automatically for successive 12-month periods.",
+                "document_id": "doc_grounded",
+                "document_name": "Grounded Contract.pdf",
+                "clause_id": "clause_2",
+                "category": "Auto-Renewal",
+                "similarity": 0.91,
+            }
+        ],
+    )
     resp = app_client.post(
-        "/api/chat",
+        "/chat",
         json={
             "question": "Does this renew automatically?",
             "document_ids": ["doc_grounded"],
             "history": [],
         },
     )
-    # The grounded path must reach the LLM and return sources (may be
-    # need seeding of doc_grounded; when absent the route refuses — see the
-    # dedicated grounding suite in tests/test_grounding.py).
     assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "SUCCESS"
+    assert body["answer"] == grounded_answer
+    assert body["sources"] and body["sources"][0]["clause_id"] == "clause_2"
+    assert "Grounded Contract.pdf" in body["used_documents"]
 
 
 # ---------------------------------------------------------------------------

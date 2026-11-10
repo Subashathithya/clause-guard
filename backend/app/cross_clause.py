@@ -45,7 +45,7 @@ CATEGORY_EDGES: dict[str, set[str]] = {
 # The regex captures the *value* the clause names so the report can state
 # "30 days" vs "90 days" without asserting which is correct.
 _CONFLICT_RULES: list[tuple[str, str, str]] = [
-    ("notice", r"(\d{1,3})\s*(?:calendar\s*)?days?\s+notice", "notice period"),
+    ("notice", r"(\d{1,3})\s*[-\s]\s*(?:calendar\s+)?days?['’]?\s*(?:(?:prior|written)\s+)?notice", "notice period"),
     ("payment", r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,3})\s*days?", "payment period"),
     ("duration", r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,3})\s*(?:months?|years?)", "duration"),
     ("renew", r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,3})\s*(?:month|year)s?", "renewal"),
@@ -251,8 +251,12 @@ def detect(
 
     _emit_report(relations, conflicts)
 
-    feedback = ""
-    if not relations and not conflicts:
+    if relations or conflicts:
+        feedback = (
+            f"{len(relations)} relationship(s) and {len(conflicts)} potential "
+            f"inconsistency(ies) found across the document."
+        )
+    else:
         feedback = "No cross-clause relationships or inconsistencies were found."
 
     return CrossClauseReport(

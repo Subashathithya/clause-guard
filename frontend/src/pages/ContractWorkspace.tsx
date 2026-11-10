@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircleQuestion, Search } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircleQuestion, Search } from 'lucide-react';
 import { api } from '../api';
 import { useAsync } from '../hooks';
 import type { AnalysisResult, AttentionLevel, ChatMessage, Clause } from '../types';
+import { downloadAnalysisReport } from '../lib/report';
 import { Card, EmptyState, ErrorState, PageHeader, Tabs } from '../components/ui/data';
 import { Badge, Select, SkeletonLines, Tag } from '../components/ui/primitives';
 import { Modal } from '../components/ui/overlays';
@@ -100,9 +101,18 @@ export default function ContractWorkspace() {
         }
         crumb={[{ label: 'Contracts', to: '/contracts' }, { label: analysis.document_name }]}
         actions={
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/contracts')}>
-            <ArrowLeft size={14} /> Back to contracts
-          </button>
+          <div className="row-inline" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => downloadAnalysisReport(analysis)}
+            >
+              <Download size={14} /> Download report
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/contracts')}>
+              <ArrowLeft size={14} /> Back to contracts
+            </button>
+          </div>
         }
       />
 

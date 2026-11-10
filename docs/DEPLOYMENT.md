@@ -72,8 +72,8 @@ legacy pre-Phase-2 rows with `python -m scripts.migrate_store`.
 ## CI/CD (GitHub Actions)
 `.github/workflows/ci.yml` runs on every push/PR:
 - **Backend** — pip install + `py_compile` on all modules + **`pytest -q`**
-  (25 unit + API + auth tests, LLM calls stubbed) + import smoke test.
-- **Frontend** — `npm ci`, production build, `tsc --noEmit`.
+  (55 backend tests across unit/API/auth, LLM calls stubbed) + import smoke test.
+- **Frontend** — `npm ci`, production build, `tsc --noEmit`, `npm test`.
 
 Add a repository secret `GROQ_API_KEY` if you want the smoke test to exercise the
 LLM (otherwise it still passes — the tests stub every live call).

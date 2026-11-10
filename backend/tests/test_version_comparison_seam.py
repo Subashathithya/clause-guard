@@ -22,7 +22,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-_ROOT = pathlib.Path(__file__).resolve().parents[2]  # backend/
+_ROOT = pathlib.Path(__file__).resolve().parents[1]  # backend/
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
@@ -109,7 +109,8 @@ def test_version_comparison_maps_exactly_onto_wire_schema():
     # wire payload carries clause ids + canonical values — never clause text,
     # never an LLM verdict
     dumped = out.model_dump()
-    assert "notice" not in str(dumped).lower() or "Notice" in out.changes[0].category
+    assert "Either party may terminate" not in str(dumped)
+    assert "Confidential data must be returned" not in str(dumped)
     assert out.llm_calls == 0
 
     # attention evolution rides the same seam, typed to the wire schema

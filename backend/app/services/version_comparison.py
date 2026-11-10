@@ -53,7 +53,7 @@ AMBIGUOUS = "ambiguous"
 # names so the report can state "30 days" vs "60 days" without asserting which
 # is better — we report neutral value evolution, never a legal verdict.
 _VALUE_RULES: list[tuple[str, str, str]] = [
-    ("notice_period", r"(\d{1,4})\s*(?:calendar\s*)?days?\s+notice", "notice period"),
+    ("notice_period", r"(\d{1,4})\s*[-\s]\s*(?:calendar\s+)?days?['’]?\s*(?:(?:prior|written)\s+)?notice", "notice period"),
     ("payment_period", r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,4})\s*days?", "payment period"),
     ("duration", r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,4})\s*(?:months?|years?)", "duration"),
     ("renewal", r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,4})\s*(?:month|year)s?", "renewal"),
@@ -77,6 +77,15 @@ def _category_of(category: str) -> str:
     return "Other"
 
 
+def _label_of(category: str) -> str:
+    """Human label for the report: keep the provider's label, default to Other.
+
+    Matching for *pairing* still uses ``_category_of`` so fuzzy labels pair
+    correctly, but the shipped report should not throw away useful detail.
+    """
+    return (category or "").strip() or "Other"
+
+
 def _value_delta(text_a: str, text_b: str) -> Optional[dict]:
     """Deterministic value-level change detection (e.g. 30 days -> 60 days)."""
     for kind, pattern, label in _VALUE_RULES:
@@ -85,11 +94,12 @@ def _value_delta(text_a: str, text_b: str) -> Optional[dict]:
         if m_b and m_a:
             value_a, value_b = m_a.group(1), m_b.group(1)
             if value_a != value_b:
+                suffix = " days" if kind in ("notice_period", "payment_period") else ""
                 return {
                     "kind": kind,
                     "label": label,
-                    "previous_value": f"{value_a} days" if "days" in label else value_a,
-                    "current_value": f"{value_b} days" if "days" in label else value_b,
+                    "previous_value": f"{value_a}{suffix}",
+                    "current_value": f"{value_b}{suffix}",
                 }
     return None
 
@@ -212,7 +222,7 @@ def detect(
                 VersionChange(
                     clause_id_a=c_old.clause_id,
                     clause_id_b=c_new.clause_id,
-                    category=_category_of(c_old.category),
+                    category=_label_of(c_old.category),
                     change_type=UNCHANGED,
                     explanation="Clause is unchanged across versions.",
                 )
@@ -241,7 +251,7 @@ def detect(
                     VersionChange(
                         clause_id_a=c_old.clause_id,
                         clause_id_b=best.clause_id,
-                        category=_category_of(c_old.category),
+                        category=_label_of(c_old.category),
                         change_type=MODIFIED,
                         previous_value=delta["previous_value"],
                         current_value=delta["current_value"],
@@ -259,7 +269,7 @@ def detect(
                     VersionChange(
                         clause_id_a=c_old.clause_id,
                         clause_id_b=best.clause_id,
-                        category=_category_of(c_old.category),
+                        category=_label_of(c_old.category),
                         change_type=MODIFIED,
                         explanation=(
                             f"The {_category_of(c_old.category).lower()} clause was revised "
@@ -288,7 +298,7 @@ def detect(
                         VersionChange(
                             clause_id_a=c_old.clause_id,
                             clause_id_b=best.clause_id,
-                            category=_category_of(c_old.category),
+                            category=_label_of(c_old.category),
                             change_type=MODIFIED,
                             explanation=(
                                 f"Clause matched its nearest candidate "
@@ -309,7 +319,7 @@ def detect(
                             VersionChange(
                                 clause_id_a=c_old.clause_id,
                                 clause_id_b=target.clause_id,
-                                category=_category_of(c_old.category),
+                                category=_label_of(c_old.category),
                                 change_type=MODIFIED,
                                 explanation=(
                                     verdict.get("explanation")
@@ -324,7 +334,7 @@ def detect(
             changes.append(
                 VersionChange(
                     clause_id_a=c_old.clause_id,
-                    category=_category_of(c_old.category),
+                    category=_label_of(c_old.category),
                     change_type=REMOVED,
                     explanation="Clause is present only in the old version (or ambiguous).",
                 )
@@ -338,7 +348,7 @@ def detect(
         changes.append(
             VersionChange(
                 clause_id_b=c.clause_id,
-                category=_category_of(c.category),
+                category=_label_of(c.category),
                 change_type=ADDED,
                 explanation="Clause is present only in the new version.",
             )
@@ -392,6 +402,11 @@ def detect(
     n_added = sum(1 for c in changes if c.change_type == ADDED)
     n_removed = sum(1 for c in changes if c.change_type == REMOVED)
 
+    # ``changes`` is the *actionable* diff: unchanged clauses are counted in the
+    # feedback/attention sections but are not shipped as changes, so consumers
+    # only render terms that actually moved.
+    reported_changes = [c for c in changes if c.change_type != UNCHANGED]
+
     feedback = (
         f"{n_unchanged} unchanged, {n_modified} modified, "
         f"{n_added} added, {n_removed} removed — {llm_calls} LLM call(s) "
@@ -401,7 +416,7 @@ def detect(
     return VersionComparisonReport(
         version_a=version_a,
         version_b=version_b,
-        changes=changes,
+        changes=reported_changes,
         attention_evolution=attention,
         clauses_a=len(old),
         clauses_b=len(new),
@@ -493,7 +508,9 @@ def _evolution(clause_id_a: str, clause_id_b: str, old, new) -> str:
     b = _band(clause_id_b, new)
     order = {"green": 0, "yellow": 1, "red": 2}
     if a not in order or b not in order:
-        return "unknown"
+        # No comparable risk signal on one side => attention is unchanged as far
+        # as the engine can observe (the raw bands are still reported).
+        return "unchanged"
     if order[b] > order[a]:
         return "increased"
     if order[b] < order[a]:

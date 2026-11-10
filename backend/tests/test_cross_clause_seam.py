@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[2]  # backend/
+_ROOT = Path(__file__).resolve().parents[1]  # backend/
 import sys
 
 if str(_ROOT) not in sys.path:

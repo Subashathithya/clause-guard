@@ -19,6 +19,7 @@ class TestExtractAgent:
 
     def test_returns_parsed_clauses(self, monkeypatch):
         from app.agents.extract_agent import ExtractAgent
+        from app.schemas import LLMExtractorOutput
 
         payload = {
             "clauses": [
@@ -26,7 +27,11 @@ class TestExtractAgent:
                 {"clause_id": "c2", "category": "Auto-Renewal & Termination", "text": "Auto renews yearly.", "confidence": 0.8},
             ]
         }
-        monkeypatch.setattr(llm, "chat_json", lambda *a, **k: payload)
+        monkeypatch.setattr(
+            llm,
+            "chat_json_validated",
+            lambda *a, **k: (LLMExtractorOutput.model_validate(payload), payload),
+        )
 
         out = ExtractAgent().extract("Sample contract text long enough to be plausible here.")
         assert out.total_clauses == 2
@@ -40,7 +45,7 @@ class TestExtractAgent:
         def boom(*a, **k):
             raise RuntimeError("network down")
 
-        monkeypatch.setattr(llm, "chat_json", boom)
+        monkeypatch.setattr(llm, "chat_json_validated", boom)
         out = ExtractAgent().extract("Some real contract text here with enough length.")
         assert out.total_clauses == 0
 
@@ -94,18 +99,19 @@ def test_provisional_risk_thresholds():
 class TestRankAgent:
     def test_llm_rank_used(self, monkeypatch):
         from app.agents.ranker_agent import RankAgent
-        from app.schemas import ComparisonResult, ExtractedClause
+        from app.schemas import ComparisonResult, ExtractedClause, LLMRankOutput
 
         def fake_chat_json(messages, **k):
-            return {
+            payload = {
                 "risk_level": "red",
                 "risk_score": 90,
                 "explanation": "This clause lets the company change prices freely.",
                 "financial_impact": "Up to RS 5,000 extra per year.",
                 "financial_impact_inr": 5000,
             }
+            return LLMRankOutput.model_validate(payload), payload
 
-        monkeypatch.setattr(llm, "chat_json", fake_chat_json)
+        monkeypatch.setattr(llm, "chat_json_validated", fake_chat_json)
         clause = ExtractedClause(clause_id="c1", category="Payment", text="Company may change any fee anytime.", confidence=0.9)
         comp = ComparisonResult(similarity=0.45)
         out = RankAgent().rank(clause, comp)
@@ -117,7 +123,7 @@ class TestRankAgent:
         from app.agents.ranker_agent import RankAgent
         from app.schemas import ComparisonResult, ExtractedClause
 
-        monkeypatch.setattr(llm, "chat_json", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
+        monkeypatch.setattr(llm, "chat_json_validated", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
         clause = ExtractedClause(clause_id="c1", category="Dispute", text="Binding arbitration mandatory.", confidence=0.9)
         comp = ComparisonResult(similarity=0.40)
         out = RankAgent().rank(clause, comp)
@@ -142,18 +148,19 @@ class TestNegotiateAgent:
 
     def test_red_clause_calls_llm(self, monkeypatch):
         from app.agents.negotiator_agent import NegotiateAgent
-        from app.schemas import ComparisonResult, ExtractedClause, RankerOutput
+        from app.schemas import ComparisonResult, ExtractedClause, LLMNegotiationOutput, RankerOutput
 
         def fake(messages, **k):
-            return {
+            payload = {
                 "negotiation_needed": True,
                 "suggested_counter_clause": "Fees may only change with 30 days written notice.",
                 "talking_points": ["Point A", "Point B"],
                 "success_probability": 70,
                 "reasoning": "A large competitor already accepts this wording.",
             }
+            return LLMNegotiationOutput.model_validate(payload), payload
 
-        monkeypatch.setattr(llm, "chat_json", fake)
+        monkeypatch.setattr(llm, "chat_json_validated", fake)
         clause = ExtractedClause(clause_id="c1", category="Payment", text="Company may change any fee anytime.", confidence=0.9)
         out = NegotiateAgent().negotiate(
             clause,
@@ -213,7 +220,14 @@ class TestOrchestrator:
                         "reasoning": "Fair alternative exists and is widely accepted."}
             return {"recommendation": "Renegotiate risky clauses.", "top_priorities": ["Payment"]}
 
-        monkeypatch.setattr(llm, "chat_json", fake_chat_json)
+        def fake_validated(messages, *, schema=None, **k):
+            payload = fake_chat_json(messages, **k)
+            try:
+                return schema.model_validate(payload), payload
+            except Exception:  # noqa: BLE001 - exercise the caller's fallback
+                return None, payload
+
+        monkeypatch.setattr(llm, "chat_json_validated", fake_validated)
 
         result = Orchestrator().run(
             "This is a sample contract with payment, warranty and privacy clauses that is long enough.",
@@ -230,8 +244,13 @@ class TestOrchestrator:
     def test_no_clauses_short_circuits(self, monkeypatch):
         from app import llm
         from app.agents.orchestrator import Orchestrator
+        from app.schemas import LLMExtractorOutput
 
-        monkeypatch.setattr(llm, "chat_json", lambda *a, **k: {"clauses": []})
+        monkeypatch.setattr(
+            llm,
+            "chat_json_validated",
+            lambda *a, **k: (LLMExtractorOutput(clauses=[]), {"clauses": []}),
+        )
         result = Orchestrator().run("Short text.", document_name="Empty")
         assert result.status == "NO_CLAUSES"
 

@@ -39,9 +39,13 @@ async def chat_with_contracts(
         raise HTTPException(status_code=400, detail="question is required")
 
     visible = contract_service.visible_document_ids(db, user)
-    requested = [d for d in input_data.document_ids if d in visible] if input_data.document_ids else None
-    if requested is not None and not requested:
-        requested = None  # caller asked only for docs they cannot see -> scope to empty set
+    # Scope retrieval to the caller's own documents. When explicit ids are
+    # supplied, keep only the ones they can see; an empty result means "search
+    # nothing", never a silent fall back to the global corpus.
+    if input_data.document_ids:
+        requested = [d for d in input_data.document_ids if d in visible]
+    else:
+        requested = list(visible)
 
     context = vdb.retrieve_context(input_data.question, requested)
     observability.retrieval(
@@ -55,14 +59,11 @@ async def chat_with_contracts(
     )
 
     relevant = [c for c in context if c["similarity"] >= settings.CHAT_MIN_SIMILARITY]
-    if not relevant and requested:
-        # Narrow scoping (selected contracts) came up empty — broaden to every
-        # analysed contract before refusing, so a weak per-document match still
-        # gets answered from the user's own documents where possible.
-        context = vdb.retrieve_context(input_data.question, None)
+    if not relevant and input_data.document_ids and visible:
+        # A narrow "selected contracts" query came up empty — broaden to every
+        # document the caller owns (never to documents they cannot see).
+        context = vdb.retrieve_context(input_data.question, list(visible))
         relevant = [c for c in context if c["similarity"] >= settings.CHAT_MIN_SIMILARITY]
-        if relevant:
-            observability.chat(grounded=False, sources=0)
     if not relevant:
         observability.chat(grounded=False, sources=0)
         answer = _no_evidence_answer(input_data.question, requested)

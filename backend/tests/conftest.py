@@ -1,4 +1,4 @@
-"""Hermetic environment for the engine test suite.
+"""Hermetic environment for the test suite.
 
 All tests run against a throwaway ``CHROMA_DIR`` (a temp directory) and a
 throwaway SQLite ``DATABASE_URL`` so the suite:
@@ -11,15 +11,43 @@ The env must be set BEFORE ``app.settings`` is imported, because settings are
 resolved once at import time.
 """
 import os
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
+
+# Make ``app`` importable no matter which directory pytest is invoked from.
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
 
 _tmp = tempfile.mkdtemp(prefix="clasueguard_tests_")
 os.environ["CHROMA_DIR"] = os.path.join(_tmp, "chroma")
 os.environ["DATABASE_URL"] = "sqlite:///" + os.path.join(_tmp, "clauseguard.db").replace("\\", "/")
 os.environ["GROQ_API_KEY"] = ""  # never make real LLM calls in tests
 os.environ["AUTO_RECONCILE_VECTOR_STORE"] = "true"
+
+
+@pytest.fixture()
+def client():
+    """FastAPI ``TestClient`` bound to the throwaway store + SQLite database.
+
+    Entering the context manager runs the app's startup hook, so tables are
+    created and the fair-clause library is seeded exactly as in production.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture()
+def app_client(client):
+    """Alias used by the engine-correctness suite for the same TestClient."""
+    return client
 
 
 @pytest.fixture()
@@ -39,8 +67,6 @@ def vector_store():
     store.seed_fair_clauses(force=True)
     yield store
     store.drop_collections()
-
-_lookup_snip = None  # placeholder
 
 
 def _clause_lookup(clauses):

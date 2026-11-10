@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, FilePlus2, FolderOpen, Layers, MessageCircleQuestion } from 'lucide-react';
 import { useAsync } from '../hooks';
@@ -8,6 +9,7 @@ import { Card, EmptyState, PageHeader } from '../components/ui/data';
 import { SkeletonLines } from '../components/ui/primitives';
 import { ContractCard } from '../components/contract/ContractCard';
 import { useToast } from '../components/ui/overlays';
+import { ActivityArea, ChartCard, RiskDonut } from '../components/charts/Charts';
 
 function Metric({ label, value, tone }: { label: string; value: string | number; tone?: 'red' | 'amber' | 'green' }) {
   const color =
@@ -29,6 +31,20 @@ export default function Dashboard() {
   const recent = (contracts || []).slice(0, 6);
   const attentionCount = (stats?.red_clauses ?? 0) + (stats?.yellow_clauses ?? 0);
   const remaining = loggedIn ? user?.quota.remaining : null;
+
+  const activity = useMemo(() => {
+    const map: Record<string, { label: string; count: number }> = {};
+    for (const c of contracts || []) {
+      const d = new Date(c.created_at);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = { label: d.toLocaleString(undefined, { month: 'short' }), count: (map[key]?.count || 0) + 1 };
+    }
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-8)
+      .map(([, v]) => v);
+  }, [contracts]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -75,6 +91,17 @@ export default function Dashboard() {
             value={loggedIn && remaining !== null ? (remaining ?? 0) : (stats?.contracts_this_month ?? 0)}
             tone="amber"
           />
+        </div>
+      )}
+
+      {(stats?.total_clauses ?? 0) > 0 && (
+        <div className="chart-grid mt-4">
+          <ChartCard title="Risk composition" subtitle="How the clauses you've analysed break down by severity">
+            <RiskDonut red={stats?.red_clauses ?? 0} yellow={stats?.yellow_clauses ?? 0} green={stats?.green_clauses ?? 0} />
+          </ChartCard>
+          <ChartCard title="Analysis activity" subtitle="Contracts analysed per month">
+            <ActivityArea data={activity} />
+          </ChartCard>
         </div>
       )}
 
