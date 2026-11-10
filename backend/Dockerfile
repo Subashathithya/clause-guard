@@ -11,9 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Data volume: Chroma vectors + the SQLite relational store both live under
-# /app/data (see CHROMA_DIR and DATABASE_URL defaults).
-VOLUME ["/app/data"]
+# Data volume: only runtime state lives under /app/data/persist, so the
+# read-only knowledge base at /app/data/fair_clauses.json from the image stays
+# visible (a mount directly on /app/data would shadow it).
+VOLUME ["/app/data/persist"]
 
 EXPOSE 8000
 

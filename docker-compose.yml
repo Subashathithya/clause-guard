@@ -10,9 +10,10 @@ services:
       - ./backend/.env
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - CHROMA_DIR=/app/data/chroma_db
+      - CHROMA_DIR=/app/data/persist/chroma_db
+      - DATABASE_URL=sqlite:////app/data/persist/clauseguard.sqlite3
     volumes:
-      - clauseguard_data:/app/data
+      - clauseguard_data:/app/data/persist
     depends_on:
       - redis
     healthcheck:

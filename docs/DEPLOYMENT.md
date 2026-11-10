@@ -19,9 +19,11 @@ below works as provided; swap in your own accounts/URLs.
 1. Push the repo (Render auto-detects `render.yaml`).
 2. Set the secret `GROQ_API_KEY` in the Render dashboard (and optional
    `DATABASE_URL`, `REDIS_URL`).
-3. A 1 GB persistent disk is mounted at `/app/data`, so **both** the Chroma
-   vectors (`/app/data/chroma_db`) and the SQLite relational store
-   (`/app/data/clauseguard.sqlite3`) survive restarts and redeploys.
+3. A 1 GB persistent disk is mounted at `/app/data/persist`, so **both** the
+   Chroma vectors (`/app/data/persist/chroma_db`) and the SQLite relational
+   store (`/app/data/persist/clauseguard.sqlite3`) survive restarts and
+   redeploys. The read-only knowledge base stays at `/app/data/fair_clauses.json`
+   inside the image, outside the mount, so a fresh volume never hides it.
 4. After the first deploy, open the Render Shell once and run
    `python scripts/seed_demo.py` to populate the guest and demo workspaces.
 5. Done — health check at `/health`.
@@ -29,7 +31,11 @@ below works as provided; swap in your own accounts/URLs.
 ### Option B — Docker anywhere
 ```bash
 docker build -t clauseguard-api backend
-docker run -p 8000:8000 --env-file backend/.env clauseguard-api
+docker run -p 8000:8000 --env-file backend/.env \
+  -v clauseguard_data:/app/data/persist \
+  -e CHROMA_DIR=/app/data/persist/chroma_db \
+  -e DATABASE_URL=sqlite:////app/data/persist/clauseguard.sqlite3 \
+  clauseguard-api
 ```
 Or with the whole stack (adds Redis):
 ```bash
@@ -38,7 +44,7 @@ docker compose up --build
 
 ### Railway
 Railway autodiscovers the Dockerfile in `backend/`. Add `GROQ_API_KEY` as a
-variable and a volume mounted at `/app/data`.
+variable and a volume mounted at `/app/data/persist`.
 
 ### Environment variables
 See `backend/.env.example`. Minimum viable production set:
@@ -59,8 +65,10 @@ Local dev: `.env.local` in `frontend/` overrides the default
 
 ## Backup
 
-The relational store (SQLAlchemy) lives at `/app/data/clauseguard.sqlite3` by
-default. Mount the container volume so it survives restarts, and back it up
+The relational store (SQLAlchemy) defaults to
+`backend/data/clauseguard.sqlite3` locally; the Render blueprint sets
+`DATABASE_URL` to `/app/data/persist/clauseguard.sqlite3` on the mounted disk.
+Mount the container volume so it survives restarts, and back it up
 (railway volume snapshots, nightly `scp`, or a cron job to S3/Drive). In
 production you can instead set `DATABASE_URL` to Neon Postgres, which is
 managed and replicated for you. ChromaDB vectors can always be re-seeded from

@@ -23,7 +23,9 @@ services:
       - key: AUTO_RECONCILE_VECTOR_STORE
         value: "true"
       - key: CHROMA_DIR
-        value: /app/data/chroma_db
+        value: /app/data/persist/chroma_db
+      - key: DATABASE_URL
+        value: sqlite:////app/data/persist/clauseguard.sqlite3
       - key: REQUIRE_AUTH
         value: "false"
       - key: JWT_SECRET
@@ -33,7 +35,7 @@ services:
       #   sync: false
     disk:
       name: clauseguard-data
-      mountPath: /app/data
+      mountPath: /app/data/persist
       sizeGB: 1
     # After the first deploy, open the Render Shell once and run:
     #   python scripts/seed_demo.py
