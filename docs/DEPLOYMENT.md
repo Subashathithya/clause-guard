@@ -19,8 +19,12 @@ below works as provided; swap in your own accounts/URLs.
 1. Push the repo (Render auto-detects `render.yaml`).
 2. Set the secret `GROQ_API_KEY` in the Render dashboard (and optional
    `DATABASE_URL`, `REDIS_URL`).
-3. A 1 GB persistent disk is mounted at `/app/chroma_db` so vectors survive restarts.
-4. Done — health check at `/health`.
+3. A 1 GB persistent disk is mounted at `/app/data`, so **both** the Chroma
+   vectors (`/app/data/chroma_db`) and the SQLite relational store
+   (`/app/data/clauseguard.sqlite3`) survive restarts and redeploys.
+4. After the first deploy, open the Render Shell once and run
+   `python scripts/seed_demo.py` to populate the guest and demo workspaces.
+5. Done — health check at `/health`.
 
 ### Option B — Docker anywhere
 ```bash
@@ -34,7 +38,7 @@ docker compose up --build
 
 ### Railway
 Railway autodiscovers the Dockerfile in `backend/`. Add `GROQ_API_KEY` as a
-variable and a volume mounted at `/app/chroma_db`.
+variable and a volume mounted at `/app/data`.
 
 ### Environment variables
 See `backend/.env.example`. Minimum viable production set:

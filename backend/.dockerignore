@@ -1,0 +1,11 @@
+# Keep secrets, local databases and caches out of the image.
+.env
+.env.*
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+chroma_db/
+data/*.sqlite3
+tests/
+docs/

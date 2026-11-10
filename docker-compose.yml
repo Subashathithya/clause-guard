@@ -10,9 +10,9 @@ services:
       - ./backend/.env
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - DATABASE_URL=${DATABASE_URL:-}
+      - CHROMA_DIR=/app/data/chroma_db
     volumes:
-      - chroma_data:/app/chroma_db
+      - clauseguard_data:/app/data
     depends_on:
       - redis
     healthcheck:
@@ -29,5 +29,5 @@ services:
       - redis_data:/data
 
 volumes:
-  chroma_data:
+  clauseguard_data:
   redis_data:

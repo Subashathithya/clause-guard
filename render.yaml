@@ -22,6 +22,8 @@ services:
         value: "0.25"
       - key: AUTO_RECONCILE_VECTOR_STORE
         value: "true"
+      - key: CHROMA_DIR
+        value: /app/data/chroma_db
       - key: REQUIRE_AUTH
         value: "false"
       - key: JWT_SECRET
@@ -31,5 +33,8 @@ services:
       #   sync: false
     disk:
       name: clauseguard-data
-      mountPath: /app/chroma_db
+      mountPath: /app/data
       sizeGB: 1
+    # After the first deploy, open the Render Shell once and run:
+    #   python scripts/seed_demo.py
+    # so the hosted app has demo contracts in both the guest and demo scopes.
