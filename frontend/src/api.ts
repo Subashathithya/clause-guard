@@ -13,10 +13,11 @@ import type {
 } from './types';
 
 /**
- * Set this to your deployed FastAPI backend for the native app (must be HTTPS
- * for a real device). The web build keeps using REACT_APP_API_URL.
+ * Native builds talk to the deployed FastAPI backend (HTTPS is required on a
+ * real device). Override per build with REACT_APP_API_URL_MOBILE; the web build
+ * keeps using REACT_APP_API_URL.
  */
-export const MOBILE_API_URL = 'https://YOUR-DEPLOYED-BACKEND.example.com';
+export const MOBILE_API_URL = 'https://clauseguard-api.onrender.com';
 
 export const API_URL =
   Capacitor.isNativePlatform()

@@ -204,9 +204,10 @@ npm run mobile:build          # production build + cap sync android
 npm run mobile:open           # open in Android Studio
 ```
 
-Set `MOBILE_API_URL` in `frontend/src/api.ts` to the deployed HTTPS backend before
-building. Play Store graphics and the privacy policy live under `frontend/assets/`
-and `frontend/public/privacy.html`.
+The native build points at `https://clauseguard-api.onrender.com` through
+`MOBILE_API_URL` in `frontend/src/api.ts` (override per build with
+`REACT_APP_API_URL_MOBILE`). Play Store graphics and the privacy policy live
+under `frontend/assets/` and `frontend/public/privacy.html`.
 
 ---
 
