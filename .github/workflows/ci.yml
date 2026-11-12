@@ -51,7 +51,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install
-        run: npm ci
+        # `npm install` rather than `npm ci`: the lock file was generated on a
+        # Windows machine, and npm has to resolve the Linux dependency tree
+        # itself (platform-specific optional packages).
+        run: npm install --no-audit --no-fund
       - name: Build
         run: npm run build
       - name: Type check
