@@ -50,8 +50,8 @@ brackets are the current counts; update them when the suite grows.
    | `ALLOWED_ORIGINS` | `https://your-frontend.example` (comma-separated) |
    | `APP_ENV` | `production` (set by the blueprint) |
    | `REQUIRE_AUTH` | `true` (set by the blueprint) |
-   | `DATABASE_URL` | `sqlite:////app/data/persist/clauseguard.sqlite3` |
-   | `CHROMA_DIR` | `/app/data/persist/chroma_db` |
+   | `DATABASE_URL` | free tier: a Neon Postgres string · paid tier: `sqlite:////app/data/persist/clauseguard.sqlite3` |
+   | `CHROMA_DIR` | free tier: `/tmp/chroma_db` (rebuilt at startup) · paid tier: `/app/data/persist/chroma_db` |
 
    The blueprint already sets `APP_ENV=production`, `REQUIRE_AUTH=true` and
    generates `JWT_SECRET`. `ALLOWED_ORIGINS` must be filled in by hand — the

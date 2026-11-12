@@ -16,6 +16,9 @@ numpy==1.26.4
 SQLAlchemy==2.0.25
 PyJWT==2.8.0
 bcrypt==4.0.1
+# Postgres driver — used when DATABASE_URL points at a managed database
+# (Neon, Render Postgres) instead of the local SQLite file.
+psycopg2-binary==2.9.9
 
 # --- File uploads ---
 pypdf==6.18.1

@@ -1,18 +1,39 @@
 # Render Blueprint for the ClauseGuard FastAPI backend.
+#
 # Deploy: push this repo to GitHub, then in Render "New +" -> "Blueprint" and
 # pick this file. Set the secret env vars (GROQ_API_KEY, JWT_SECRET,
-# ALLOWED_ORIGINS) in the dashboard when prompted.
+# ALLOWED_ORIGINS, DATABASE_URL) in the dashboard when prompted.
+#
+# This blueprint runs on Render's FREE web service, so no card is needed:
+#   * the relational store lives in a managed Postgres (Neon) — see DATABASE_URL;
+#   * the vector store is rebuilt automatically at startup from the relational
+#     rows, so an ephemeral disk is not a problem.
+# For a production setup, change `plan: free` to `plan: starter` and add the
+# `disk:` block from docs/DEPLOYMENT.md (a persistent disk + SQLite, no
+# external database).
 services:
   - type: web
     name: clauseguard-api
     runtime: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: GROQ_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        # Neon (or any managed Postgres) connection string, e.g.
+        # postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/clauseguard?sslmode=require
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: REQUIRE_AUTH
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
         sync: false
       - key: PRIMARY_MODEL
         value: openai/gpt-oss-120b
@@ -23,26 +44,8 @@ services:
       - key: AUTO_RECONCILE_VECTOR_STORE
         value: "true"
       - key: CHROMA_DIR
-        value: /app/data/persist/chroma_db
-      - key: DATABASE_URL
-        value: sqlite:////app/data/persist/clauseguard.sqlite3
-      # Phase 7: production posture. The API refuses to start without a real
-      # JWT secret, explicit browser origins and authentication switched on.
-      - key: APP_ENV
-        value: production
-      - key: REQUIRE_AUTH
-        value: "true"
-      - key: JWT_SECRET
-        generateValue: true
-      - key: ALLOWED_ORIGINS
-        sync: false
-      # Optional: use PostgreSQL instead of the ephemeral SQLite file.
-      # - key: DATABASE_URL
-      #   sync: false
-    disk:
-      name: clauseguard-data
-      mountPath: /app/data/persist
-      sizeGB: 1
+        # Ephemeral on the free tier: the vectors are rebuilt at startup.
+        value: /tmp/chroma_db
     # After the first deploy, open the Render Shell once and run:
     #   python scripts/seed_demo.py
     # so the hosted app has demo contracts in both the guest and demo scopes.

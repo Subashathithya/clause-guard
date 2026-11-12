@@ -90,6 +90,39 @@ Render is pre-configured for this (`render.yaml` sets `APP_ENV=production` and
 the Render dashboard, for example
 `https://clauseguard.app,https://www.clauseguard.app`.
 
+### Free tier vs. paid tier
+
+`render.yaml` runs on Render's **free** web service, so no card is needed. The
+free tier has no persistent disk, so the two pieces of state are handled
+differently:
+
+| State | Free tier | Starter plan (paid) |
+|---|---|---|
+| Relational store | **Managed Postgres** (Neon) via `DATABASE_URL` | SQLite file on the mounted disk |
+| Vector store | Rebuilt at every cold start from the relational rows | Persisted on the disk |
+| Cold start | ~30–60 s after 15 min idle | Always on |
+
+To use the free tier:
+
+1. Create a free Postgres at <https://neon.tech> (a project, a database, then
+   copy the **pooled** connection string).
+2. In Render, set `DATABASE_URL` to that string:
+   `postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/clauseguard?sslmode=require`
+3. Leave the rest of the blueprint as it is. `psycopg2-binary` is already in
+   `requirements.txt`, and the app creates its tables on startup.
+
+To move to the paid Starter plan later: change `plan: free` to `plan: starter`,
+add the `disk:` block below, point `DATABASE_URL` back at the mounted SQLite
+file, and drop the `DATABASE_URL` env var.
+
+```yaml
+    plan: starter
+    disk:
+      name: clauseguard-data
+      mountPath: /app/data/persist
+      sizeGB: 1
+```
+
 ## Frontend (Vercel)
 1. Import the repo, root directory = `frontend`.
 2. `vercel.json` is auto-detected (build = `npm run build`, output = `build`).
