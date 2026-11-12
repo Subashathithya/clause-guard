@@ -30,6 +30,7 @@ tests treat the two engines uniformly.
 """
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Sequence
@@ -48,16 +49,34 @@ ADDED = "added"
 REMOVED = "removed"
 AMBIGUOUS = "ambiguous"
 
-# Deterministic change-kind detectors: (canonical kind, regex with one capture
-# group for the *value*, human label). The regex captures the value the clause
-# names so the report can state "30 days" vs "60 days" without asserting which
-# is better — we report neutral value evolution, never a legal verdict.
+# Deterministic change-kind detectors: (canonical kind, regex, human label).
+# Numeric rules capture ``(number, unit)`` so the shipped values keep their
+# unit ("12 months" -> "24 months"); the amount rule captures the written
+# amount in one group. The report states neutral value evolution, never a
+# legal better/worse verdict.
 _VALUE_RULES: list[tuple[str, str, str]] = [
-    ("notice_period", r"(\d{1,4})\s*[-\s]\s*(?:calendar\s+)?days?['’]?\s*(?:(?:prior|written)\s+)?notice", "notice period"),
-    ("payment_period", r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,4})\s*days?", "payment period"),
-    ("duration", r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,4})\s*(?:months?|years?)", "duration"),
-    ("renewal", r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,4})\s*(?:month|year)s?", "renewal"),
-    ("amount", r"(?:INR|Rs\.?|₹)\s?([\d,]+(?:\s*\.\d+)?)", "amount"),
+    (
+        "notice_period",
+        r"(\d{1,4})\s*[-\s]\s*(?:calendar\s+)?(days?|weeks?|months?)['’]?\s*"
+        r"(?:(?:prior|written)\s+)?notice",
+        "notice period",
+    ),
+    (
+        "payment_period",
+        r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,4})\s*(days?|weeks?|months?)",
+        "payment period",
+    ),
+    (
+        "duration",
+        r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,4})\s*(months?|years?)",
+        "duration",
+    ),
+    (
+        "renewal",
+        r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,4})\s*(months?|years?)",
+        "renewal",
+    ),
+    ("amount", r"((?:INR|Rs\.?|₹)\s?[\d,]+(?:\s*\.\d+)?)", "amount"),
 ]
 
 
@@ -86,22 +105,47 @@ def _label_of(category: str) -> str:
     return (category or "").strip() or "Other"
 
 
+def _display_value(match: re.Match, kind: str) -> str:
+    if kind == "amount":
+        return re.sub(r"\s+", " ", match.group(1)).strip()
+    return f"{int(match.group(1))} {match.group(2).lower()}"
+
+
+def _canonical_value(match: re.Match, kind: str) -> str:
+    """Comparable form: 12 months == 1 year, but 30 days != 30 months."""
+    if kind == "amount":
+        raw = re.sub(r"[,\s]", "", match.group(1).lower())
+        return raw.replace("rs.", "inr").replace("rs", "inr")
+    count = int(match.group(1))
+    unit = match.group(2).lower().rstrip("s")
+    if unit == "year":
+        return f"months:{count * 12}"
+    if unit == "month":
+        return f"months:{count}"
+    return f"{unit}:{count}"
+
+
 def _value_delta(text_a: str, text_b: str) -> Optional[dict]:
     """Deterministic value-level change detection (e.g. 30 days -> 60 days)."""
     for kind, pattern, label in _VALUE_RULES:
-        m_b = re.search(pattern, text_b, flags=re.IGNORECASE)
         m_a = re.search(pattern, text_a, flags=re.IGNORECASE)
-        if m_b and m_a:
-            value_a, value_b = m_a.group(1), m_b.group(1)
-            if value_a != value_b:
-                suffix = " days" if kind in ("notice_period", "payment_period") else ""
-                return {
-                    "kind": kind,
-                    "label": label,
-                    "previous_value": f"{value_a}{suffix}",
-                    "current_value": f"{value_b}{suffix}",
-                }
+        m_b = re.search(pattern, text_b, flags=re.IGNORECASE)
+        if not (m_a and m_b):
+            continue
+        if _canonical_value(m_a, kind) == _canonical_value(m_b, kind):
+            continue
+        return {
+            "kind": kind,
+            "label": label,
+            "previous_value": _display_value(m_a, kind),
+            "current_value": _display_value(m_b, kind),
+        }
     return None
+
+
+def _text_similarity(text_a: str, text_b: str) -> float:
+    """Deterministic, zero-LLM similarity used to disambiguate candidates."""
+    return difflib.SequenceMatcher(None, _normalize(text_a), _normalize(text_b)).ratio()
 
 
 # ----------------------------------------------------------------- dataclasses
@@ -187,11 +231,12 @@ def detect(
 
     Layers, in order:
 
-    1. structural identity — ``(canonical category, normalized text)``;
-    2. matched pairs — deterministically consumed in document order, then any
-       remaining clauses become ``added``/``removed`` by identity;
-    3. optional semantic/LLM — only ``ambiguous`` pairs are offered to the
-       injected callables; never an N x N LLM scan.
+    1. structural identity — normalized text (same category first, then a
+       re-categorised but otherwise identical section);
+    2. matched pairs — deterministic value changes first, then single
+       candidates, then zero-LLM text similarity for near-duplicate wording;
+    3. optional semantic/LLM — only genuinely ambiguous pairs are offered to
+       the injected callables; never an N x N LLM scan.
 
     ``llm_calls`` is 0 unless the caller supplies ``llm_classify`` AND a pair
     is actually ambiguous — the deterministic path (including ``30 days ->
@@ -204,20 +249,25 @@ def detect(
     llm_calls = 0
     semantic_scanned = 0
 
-    # Normalize both sides keyed by (category, folded text) for the O(N) pass.
-    new_by_norm: dict[tuple[str, str], list[ExtractedClause]] = {}
+    # Exact-wording index used before any category-based candidate search.
+    new_by_text: dict[str, list[ExtractedClause]] = {}
     for c in new:
-        new_by_norm.setdefault((_category_of(c.category), _normalize(c.text)), []).append(c)
+        new_by_text.setdefault(_normalize(c.text), []).append(c)
 
     consumed_new: set[str] = set()
 
     for c_old in old:
-        key = (_category_of(c_old.category), _normalize(c_old.text))
-        matches = new_by_norm.get(key)
-        if matches:
-            c_new = matches.pop(0)
+        exact = [
+            c for c in new_by_text.get(_normalize(c_old.text), [])
+            if c.clause_id not in consumed_new
+        ]
+        same_category_exact = [
+            c for c in exact
+            if _category_of(c.category) == _category_of(c_old.category)
+        ]
+        if same_category_exact:
+            c_new = same_category_exact[0]
             consumed_new.add(c_new.clause_id)
-            # identical text + category -> unchanged
             changes.append(
                 VersionChange(
                     clause_id_a=c_old.clause_id,
@@ -228,6 +278,25 @@ def detect(
                 )
             )
             continue
+        if exact:
+            # Same wording under a different topic is a real revision, not a
+            # removal-plus-addition pair.
+            c_new = exact[0]
+            consumed_new.add(c_new.clause_id)
+            changes.append(
+                VersionChange(
+                    clause_id_a=c_old.clause_id,
+                    clause_id_b=c_new.clause_id,
+                    category=_label_of(c_old.category),
+                    change_type=MODIFIED,
+                    explanation=(
+                        "The wording is the same but the section topic changed "
+                        f"from {_label_of(c_old.category)} to {_label_of(c_new.category)}."
+                    ),
+                )
+            )
+            continue
+
         # Same canonical category, different text -> potential modification.
         candidates = [
             c for c in new
@@ -235,110 +304,149 @@ def detect(
             and _category_of(c.category) == _category_of(c_old.category)
         ]
         candidate_pairs += len(candidates)
-        if candidates:
-            # Deterministic tie-break candidate: value-level evidence first.
-            delta = None
-            best = None
-            for cand in candidates:
-                d = _value_delta(c_old.text, cand.text)
-                if d is not None:
-                    delta = d
-                    best = cand
-                    break
-            if delta is not None and best is not None:
-                consumed_new.add(best.clause_id)
-                changes.append(
-                    VersionChange(
-                        clause_id_a=c_old.clause_id,
-                        clause_id_b=best.clause_id,
-                        category=_label_of(c_old.category),
-                        change_type=MODIFIED,
-                        previous_value=delta["previous_value"],
-                        current_value=delta["current_value"],
-                        explanation=(
-                            f"The {delta['label']} changed from {delta['previous_value']} "
-                            f"to {delta['current_value']}."
-                        ),
-                    )
-                )
-                continue
-            if len(candidates) == 1:
-                best = candidates[0]
-                consumed_new.add(best.clause_id)
-                changes.append(
-                    VersionChange(
-                        clause_id_a=c_old.clause_id,
-                        clause_id_b=best.clause_id,
-                        category=_label_of(c_old.category),
-                        change_type=MODIFIED,
-                        explanation=(
-                            f"The {_category_of(c_old.category).lower()} clause was revised "
-                            "across versions (no single value changed deterministically)."
-                        ),
-                    )
-                )
-                continue
-            # More than one plausible target -> ambiguity. Offer to the opt-in
-            # callables ONLY here; never N x N.
-            ambiguous_pairs += 1
-            if semantic is not None:
-                best = None
-                best_sim = -1.0
-                for cand in candidates:
-                    semantic_scanned += 1
-                    try:
-                        sim = float(semantic(c_old.text, cand.text) or 0.0)
-                    except Exception:  # noqa: BLE001 — semantic is best-effort
-                        sim = 0.0
-                    if sim > best_sim:
-                        best_sim, best = sim, cand
-                if best is not None and best_sim >= semantic_threshold:
-                    consumed_new.add(best.clause_id)
-                    changes.append(
-                        VersionChange(
-                            clause_id_a=c_old.clause_id,
-                            clause_id_b=best.clause_id,
-                            category=_label_of(c_old.category),
-                            change_type=MODIFIED,
-                            explanation=(
-                                f"Clause matched its nearest candidate "
-                                f"(semantic score {round(best_sim, 2)})."
-                            ),
-                        )
-                    )
-                    continue
-            if llm_classify is not None:
-                llm_calls += 1
-                try:
-                    verdict = llm_classify(c_old.text, ",".join(c.text for c in candidates)) or {}
-                    target_id = verdict.get("target_clause_id", "")
-                    target = next((c for c in candidates if c.clause_id == target_id), None)
-                    if target is not None:
-                        consumed_new.add(target.clause_id)
-                        changes.append(
-                            VersionChange(
-                                clause_id_a=c_old.clause_id,
-                                clause_id_b=target.clause_id,
-                                category=_label_of(c_old.category),
-                                change_type=MODIFIED,
-                                explanation=(
-                                    verdict.get("explanation")
-                                    or "Clause matched via LLM-disambiguated pair."
-                                ),
-                            )
-                        )
-                        continue
-                except Exception:  # noqa: BLE001 — a bad LLM verdict falls back
-                    pass
-            # Still unresolved -> count as ambiguous-removed for the old side.
+        if not candidates:
             changes.append(
                 VersionChange(
                     clause_id_a=c_old.clause_id,
                     category=_label_of(c_old.category),
                     change_type=REMOVED,
-                    explanation="Clause is present only in the old version (or ambiguous).",
+                    explanation="Clause is present only in the old version.",
                 )
             )
+            continue
+
+        # Deterministic tie-break candidate: value-level evidence first.
+        delta = None
+        best = None
+        for cand in candidates:
+            d = _value_delta(c_old.text, cand.text)
+            if d is not None:
+                delta = d
+                best = cand
+                break
+        if delta is not None and best is not None:
+            consumed_new.add(best.clause_id)
+            changes.append(
+                VersionChange(
+                    clause_id_a=c_old.clause_id,
+                    clause_id_b=best.clause_id,
+                    category=_label_of(c_old.category),
+                    change_type=MODIFIED,
+                    previous_value=delta["previous_value"],
+                    current_value=delta["current_value"],
+                    explanation=(
+                        f"The {delta['label']} changed from {delta['previous_value']} "
+                        f"to {delta['current_value']}."
+                    ),
+                )
+            )
+            continue
+        if len(candidates) == 1:
+            best = candidates[0]
+            consumed_new.add(best.clause_id)
+            changes.append(
+                VersionChange(
+                    clause_id_a=c_old.clause_id,
+                    clause_id_b=best.clause_id,
+                    category=_label_of(c_old.category),
+                    change_type=MODIFIED,
+                    explanation=(
+                        f"The {_category_of(c_old.category).lower()} clause was revised "
+                        "across versions (no single value changed deterministically)."
+                    ),
+                )
+            )
+            continue
+
+        # More than one plausible target: deterministic wording similarity can
+        # settle most of these without a model call. Only a genuine tie is
+        # offered to the opt-in callables (never N x N).
+        scored = sorted(
+            ((_text_similarity(c_old.text, c.text), c) for c in candidates),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        best_sim, best = scored[0]
+        runner_up = scored[1][0] if len(scored) > 1 else 0.0
+        if best is not None and best_sim >= 0.55 and best_sim - runner_up >= 0.02:
+            consumed_new.add(best.clause_id)
+            changes.append(
+                VersionChange(
+                    clause_id_a=c_old.clause_id,
+                    clause_id_b=best.clause_id,
+                    category=_label_of(c_old.category),
+                    change_type=MODIFIED,
+                    explanation=(
+                        "Clause matched the closest wording among several "
+                        f"candidates (text similarity {round(best_sim, 2)})."
+                    ),
+                )
+            )
+            continue
+
+        ambiguous_pairs += 1
+        if semantic is not None:
+            best = None
+            best_sim = -1.0
+            for cand in candidates:
+                semantic_scanned += 1
+                try:
+                    sim = float(semantic(c_old.text, cand.text) or 0.0)
+                except Exception:  # noqa: BLE001 — semantic is best-effort
+                    sim = 0.0
+                if sim > best_sim:
+                    best_sim, best = sim, cand
+            if best is not None and best_sim >= semantic_threshold:
+                consumed_new.add(best.clause_id)
+                changes.append(
+                    VersionChange(
+                        clause_id_a=c_old.clause_id,
+                        clause_id_b=best.clause_id,
+                        category=_label_of(c_old.category),
+                        change_type=MODIFIED,
+                        explanation=(
+                            f"Clause matched its nearest candidate "
+                            f"(semantic score {round(best_sim, 2)})."
+                        ),
+                    )
+                )
+                continue
+        if llm_classify is not None:
+            llm_calls += 1
+            try:
+                verdict = llm_classify(c_old.text, ",".join(c.text for c in candidates)) or {}
+                target_id = verdict.get("target_clause_id", "")
+                target = next((c for c in candidates if c.clause_id == target_id), None)
+                if target is not None:
+                    consumed_new.add(target.clause_id)
+                    changes.append(
+                        VersionChange(
+                            clause_id_a=c_old.clause_id,
+                            clause_id_b=target.clause_id,
+                            category=_label_of(c_old.category),
+                            change_type=MODIFIED,
+                            explanation=(
+                                verdict.get("explanation")
+                                or "Clause matched via LLM-disambiguated pair."
+                            ),
+                        )
+                    )
+                    continue
+            except Exception:  # noqa: BLE001 — a bad LLM verdict falls back
+                pass
+        # Still unresolved. Report the ambiguity honestly instead of
+        # pretending the old section vanished and the new one appeared.
+        changes.append(
+            VersionChange(
+                clause_id_a=c_old.clause_id,
+                category=_label_of(c_old.category),
+                change_type=AMBIGUOUS,
+                explanation=(
+                    "This section had more than one possible match in the newer "
+                    "version, so it needs a manual check."
+                ),
+            )
+        )
 
     # Anything not consumed in the new version -> added.
     consumed_new_ids = consumed_new
@@ -364,8 +472,8 @@ def detect(
                     clause_id=c.clause_id_b or c.clause_id_a,
                     category=c.category,
                     previous_attention=_band(c.clause_id_a, old),
-                    current_attention=_band(c.clause_id_b, old, new),
-                    evolution="unchanged",
+                    current_attention=_band(c.clause_id_b, new),
+                    evolution=_evolution(c.clause_id_a, c.clause_id_b, old, new),
                 )
             )
         elif c.change_type == MODIFIED:
@@ -396,11 +504,21 @@ def detect(
                     evolution="removed",
                 )
             )
+        elif c.change_type == AMBIGUOUS:
+            attention.append(
+                AttentionEvolution(
+                    clause_id=c.clause_id_a,
+                    category=c.category,
+                    previous_attention=_band(c.clause_id_a, old),
+                    evolution="unknown",
+                )
+            )
 
     n_unchanged = sum(1 for c in changes if c.change_type == UNCHANGED)
     n_modified = sum(1 for c in changes if c.change_type == MODIFIED)
     n_added = sum(1 for c in changes if c.change_type == ADDED)
     n_removed = sum(1 for c in changes if c.change_type == REMOVED)
+    n_ambiguous = sum(1 for c in changes if c.change_type == AMBIGUOUS)
 
     # ``changes`` is the *actionable* diff: unchanged clauses are counted in the
     # feedback/attention sections but are not shipped as changes, so consumers
@@ -409,8 +527,8 @@ def detect(
 
     feedback = (
         f"{n_unchanged} unchanged, {n_modified} modified, "
-        f"{n_added} added, {n_removed} removed — {llm_calls} LLM call(s) "
-        f"({ambiguous_pairs} ambiguous pair(s))."
+        f"{n_added} added, {n_removed} removed, {n_ambiguous} needing a manual "
+        f"check — {llm_calls} LLM call(s) ({ambiguous_pairs} ambiguous pair(s))."
     )
 
     return VersionComparisonReport(

@@ -1,7 +1,7 @@
 # Render Blueprint for the ClauseGuard FastAPI backend.
 # Deploy: push this repo to GitHub, then in Render "New +" -> "Blueprint" and
-# pick this file. Set the secret env vars (GROQ_API_KEY, JWT_SECRET) in the
-# dashboard when prompted.
+# pick this file. Set the secret env vars (GROQ_API_KEY, JWT_SECRET,
+# ALLOWED_ORIGINS) in the dashboard when prompted.
 services:
   - type: web
     name: clauseguard-api
@@ -26,10 +26,16 @@ services:
         value: /app/data/persist/chroma_db
       - key: DATABASE_URL
         value: sqlite:////app/data/persist/clauseguard.sqlite3
+      # Phase 7: production posture. The API refuses to start without a real
+      # JWT secret, explicit browser origins and authentication switched on.
+      - key: APP_ENV
+        value: production
       - key: REQUIRE_AUTH
-        value: "false"
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
       # Optional: use PostgreSQL instead of the ephemeral SQLite file.
       # - key: DATABASE_URL
       #   sync: false

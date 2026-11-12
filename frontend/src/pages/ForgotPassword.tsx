@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert, Button, Field, Input } from '../components/ui/primitives';
 import { AuthLayout } from './AuthLayout';
+import { useI18n } from '../i18n/I18nProvider';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function ForgotPassword() {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [sent, setSent] = useState(false);
@@ -14,7 +16,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setEmailError('');
     if (!EMAIL_RE.test(email.trim())) {
-      setEmailError('Enter a valid email address.');
+      setEmailError(t('auth.invalidEmail'));
       return;
     }
     // There is no password-reset endpoint yet — we do not fake a reset email.
@@ -22,19 +24,19 @@ export default function ForgotPassword() {
   };
 
   return (
-    <AuthLayout title="Reset your password" subtitle="We’ll help you get back into your account.">
+    <AuthLayout title={t('auth.forgotTitle')} subtitle={t('auth.forgotLead')}>
       {sent ? (
-        <Alert tone="info" title="Password reset isn’t available yet">
-          We don’t have a self-service reset built in at the moment. For now, please{' '}
-          <Link to="/login">sign in again</Link> if you remember your password, or reach out to support
-          and we’ll restore access for <strong>{email.trim()}</strong>.
+        <Alert tone="info" title={t('auth.forgotUnavailable')}>
+          {t('auth.forgotUnavailableBefore')}{' '}
+          <Link to="/login">{t('auth.forgotSignInAgain')}</Link>{' '}
+          {t('auth.forgotUnavailableAfter', { email: email.trim() })}
         </Alert>
       ) : (
         <form onSubmit={submit} noValidate>
           <Field
-            label="Email"
+            label={t('auth.email')}
             htmlFor="fp-email"
-            helper="Enter the email you registered with and we’ll look into it."
+            helper={t('auth.forgotBody')}
             error={emailError}
           >
             <Input
@@ -48,7 +50,7 @@ export default function ForgotPassword() {
             />
           </Field>
           <Button type="submit" block>
-            Continue
+            {t('auth.continue')}
           </Button>
         </form>
       )}

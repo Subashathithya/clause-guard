@@ -20,6 +20,8 @@ import {
 import { useAuth } from '../auth/context';
 import { useAsync } from '../hooks';
 import { api } from '../api';
+import { useI18n } from '../i18n/I18nProvider';
+import InstallCard from '../pwa/InstallCard';
 import { MenuAction, Popover, useToast } from './ui/overlays';
 
 interface NavItem {
@@ -30,17 +32,25 @@ interface NavItem {
 }
 
 const MAIN_NAV: Array<NavItem | { section: string }> = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} />, end: true },
-  { to: '/analyze', label: 'Analyze Contract', icon: <FilePlus2 size={17} /> },
-  { to: '/contracts', label: 'My Contracts', icon: <FileText size={17} /> },
-  { to: '/compare', label: 'Compare', icon: <Layers size={17} /> },
-  { to: '/terms-checker', label: 'T&C Checker', icon: <Scale size={17} /> },
-  { to: '/insights', label: 'Insights', icon: <FileSearch size={17} /> },
+  { to: '/dashboard', label: 'nav.dashboard', icon: <LayoutDashboard size={17} />, end: true },
+  { to: '/analyze', label: 'nav.analyze', icon: <FilePlus2 size={17} /> },
+  { to: '/contracts', label: 'nav.contracts', icon: <FileText size={17} /> },
+  { to: '/compare', label: 'nav.compare', icon: <Layers size={17} /> },
+  { to: '/terms-checker', label: 'nav.termsChecker', icon: <Scale size={17} /> },
+  { to: '/insights', label: 'nav.insights', icon: <FileSearch size={17} /> },
 ];
 
 const FOOTER_NAV: NavItem[] = [
-  { to: '/notifications', label: 'Notifications', icon: <Bell size={17} /> },
-  { to: '/settings', label: 'Settings', icon: <SettingsIcon size={17} /> },
+  { to: '/notifications', label: 'nav.notifications', icon: <Bell size={17} /> },
+  { to: '/settings', label: 'nav.settings', icon: <SettingsIcon size={17} /> },
+];
+
+const BOTTOM_NAV: Array<NavItem & { primary?: boolean }> = [
+  { to: '/dashboard', label: 'nav.home', icon: <LayoutDashboard size={20} />, end: true },
+  { to: '/contracts', label: 'nav.contracts', icon: <FileText size={20} /> },
+  { to: '/analyze', label: 'nav.analyze', icon: <FilePlus2 size={20} />, primary: true },
+  { to: '/compare', label: 'nav.compare', icon: <Layers size={20} /> },
+  { to: '/insights', label: 'nav.insights', icon: <FileSearch size={20} /> },
 ];
 
 function isSection(item: NavItem | { section: string }): item is { section: string } {
@@ -55,21 +65,32 @@ function initials(name: string): string {
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, loggedIn } = useAuth();
+  const { t } = useI18n();
   return (
     <>
       <div className="sidebar-brand">
-        <span className="brand-shield">
-          <Shield size={18} />
-        </span>
-        <h1>
-          ClauseGuard
-          <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>
-            Contract clarity, in plain English
+        <div className="sidebar-brand-main">
+          <span className="brand-shield">
+            <Shield size={18} />
           </span>
-        </h1>
+          <div className="sidebar-brand-title">
+            ClauseGuard
+            <span className="sidebar-brand-sub">{t('nav.brandSubtitle')}</span>
+          </div>
+        </div>
+        {onNavigate && (
+          <button
+            type="button"
+            className="sidebar-close"
+            onClick={onNavigate}
+            aria-label={t('nav.closeNav')}
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
-      <nav className="sidebar-nav" aria-label="Main navigation">
+      <nav className="sidebar-nav" aria-label={t('nav.mainNav')}>
         {MAIN_NAV.map((item) =>
           isSection(item) ? null : (
             <NavLink
@@ -80,12 +101,12 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
             >
               <span className="nav-ic">{item.icon}</span>
-              {item.label}
+              {t(item.label)}
             </NavLink>
           )
         )}
 
-        <div className="side-section-label">Account</div>
+        <div className="side-section-label">{t('nav.account')}</div>
         {FOOTER_NAV.map((item) => (
           <NavLink
             key={item.to}
@@ -94,7 +115,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
           >
             <span className="nav-ic">{item.icon}</span>
-            {item.label}
+            {t(item.label)}
           </NavLink>
         ))}
       </nav>
@@ -103,28 +124,35 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {loggedIn && user ? (
           <div className="quota-box">
             <div className="quota-row">
-              <span>Free analyses</span>
+              <span>{t('nav.freeAnalyses')}</span>
               <strong style={{ color: '#e2e8f0' }}>
                 {user.quota.remaining} of {user.quota.monthly_limit} left
               </strong>
             </div>
             <div className="quota-row" style={{ marginTop: 4 }}>
-              <span>Renews monthly</span>
+              <span>{t('nav.renewsMonthly')}</span>
               <span style={{ color: '#94a3b8' }}>{user.email}</span>
             </div>
           </div>
         ) : (
           <div className="quota-box">
             <div className="quota-row">
-              <span>Guest mode</span>
-              <strong style={{ color: '#e2e8f0' }}>5 analyses / month</strong>
+              <span>{t('nav.guestMode')}</span>
+              <strong style={{ color: '#e2e8f0' }}>{t('nav.guestQuota')}</strong>
             </div>
             <NavLink
               to="/signup"
               onClick={onNavigate}
               style={{ display: 'block', marginTop: 8, fontSize: 13, fontWeight: 600 }}
             >
-              Create a free account →
+              {t('nav.createFreeAccount')}
+            </NavLink>
+            <NavLink
+              to="/login"
+              onClick={onNavigate}
+              style={{ display: 'block', marginTop: 6, fontSize: 13, color: '#cbd5e1' }}
+            >
+              {t('nav.signIn')}
             </NavLink>
           </div>
         )}
@@ -139,13 +167,34 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const { t } = useI18n();
 
   const closeNav = useCallback(() => setNavOpen(false), []);
   useEffect(() => closeNav(), [location.pathname, closeNav]);
 
+  // Close the mobile drawer with Escape and prevent the page behind it from
+  // scrolling while it is open.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeNav();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [navOpen, closeNav]);
+
   return (
     <div className="shell">
-      <aside className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Sidebar">
+      <a href="#main-content" className="skip-link">
+        {t('nav.skipToContent')}
+      </a>
+
+      <aside id="app-sidebar" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label={t('nav.sidebar')}>
         <SidebarContent onNavigate={closeNav} />
       </aside>
       {navOpen && (
@@ -153,8 +202,7 @@ export function AppShell() {
           type="button"
           className="sidebar-scrim"
           onClick={closeNav}
-          aria-label="Close navigation"
-          style={{ border: 'none', cursor: 'pointer' }}
+          aria-label={t('nav.closeNav')}
         />
       )}
 
@@ -164,8 +212,9 @@ export function AppShell() {
             type="button"
             className="gc-burger"
             onClick={() => setNavOpen((v) => !v)}
-            aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
+            aria-label={navOpen ? t('nav.closeNav') : t('nav.openNav')}
             aria-expanded={navOpen}
+            aria-controls="app-sidebar"
           >
             {navOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -173,7 +222,7 @@ export function AppShell() {
           <NavLink
             to="/dashboard"
             className="gc-burger hide-sm"
-            aria-label="Dashboard"
+            aria-label={t('nav.dashboard')}
             style={{ color: 'var(--text-mid)' }}
           >
             <Home size={20} />
@@ -186,21 +235,26 @@ export function AppShell() {
               type="button"
               className="icon-btn"
               onClick={() => navigate('/notifications')}
-              aria-label="Notifications"
+              aria-label={t('nav.notifications')}
             >
               <Bell size={20} />
             </button>
 
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/analyze')}>
-              <FilePlus2 size={15} /> <span className="hide-sm">New analysis</span>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => navigate('/analyze')}
+              aria-label={t('nav.newAnalysis')}
+            >
+              <FilePlus2 size={15} /> <span className="hide-sm">{t('nav.newAnalysis')}</span>
             </button>
 
             {loggedIn && user ? (
               <Popover
-                label="Account menu"
+                label={t('nav.accountMenu')}
                 align="right"
                 trigger={
-                  <span className="avatar" style={{ cursor: 'pointer' }} aria-label="Account menu">
+                  <span className="avatar" style={{ cursor: 'pointer' }} aria-label={t('nav.accountMenu')}>
                     {initials(user.full_name || user.email)}
                   </span>
                 }
@@ -215,18 +269,18 @@ export function AppShell() {
                     </div>
                     <div className="popover-divider" />
                     <MenuAction onSelect={() => { close(); navigate('/settings'); }}>
-                      <UserIcon size={15} /> Profile &amp; settings
+                      <UserIcon size={15} /> {t('nav.profileSettings')}
                     </MenuAction>
                     <MenuAction
                       danger
                       onSelect={() => {
                         close();
                         logout();
-                        toast.push('You have been signed out.', 'info');
+                        toast.push(t('auth.signedOut'), 'info');
                         navigate('/');
                       }}
                     >
-                      <LogOut size={15} /> Sign out
+                      <LogOut size={15} /> {t('nav.signOut')}
                     </MenuAction>
                   </>
                 )}
@@ -234,24 +288,42 @@ export function AppShell() {
             ) : (
               <div className="topbar-group">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/login')}>
-                  Sign in
+                  {t('nav.signIn')}
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/signup')}>
-                  <Building2 size={15} /> Sign up
+                  <Building2 size={15} /> {t('nav.signUp')}
                 </button>
               </div>
             )}
           </div>
         </header>
 
-        <main className="shell-workspace">
+        <main id="main-content" className="shell-workspace" tabIndex={-1}>
+          <InstallCard />
           <Outlet />
-          <footer className="mt-5 text-sm faint" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, marginTop: 40 }}>
-            ClauseGuard provides AI-assisted contract understanding and is not legal advice. For anything
-            important, please review with a qualified professional.
+          <footer className="app-footer">
+            {t('footer.disclaimer')}
           </footer>
         </main>
       </div>
+
+      <nav className="bottom-nav" aria-label={t('nav.quickNav')}>
+        {BOTTOM_NAV.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              ['bn-item', item.primary ? 'bn-item-primary' : '', isActive ? 'active' : '']
+                .filter(Boolean)
+                .join(' ')
+            }
+          >
+            <span className="bn-ic" aria-hidden="true">{item.icon}</span>
+            {t(item.label)}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

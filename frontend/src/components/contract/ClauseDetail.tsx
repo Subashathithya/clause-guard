@@ -6,6 +6,7 @@ import { relatedClauses, type ClauseLink } from '../../lib/clauseRelations';
 import { AttentionBadge } from './AttentionBadge';
 import { EvidencePanel } from './EvidencePanel';
 import { Tag } from '../ui/primitives';
+import { useI18n } from '../../i18n/I18nProvider';
 
 function SectionBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -26,11 +27,12 @@ function RelatedClauses({
   allClauses: Clause[];
   onJump: (clauseId: string) => void;
 }) {
+  const { t } = useI18n();
   const links = useMemo<ClauseLink[]>(() => relatedClauses(clause, allClauses), [clause, allClauses]);
   if (links.length === 0) return null;
   return (
-    <SectionBlock title="Related sections">
-      <p className="text-sm muted">Other parts of this document that touch on the same topic:</p>
+    <SectionBlock title={t('clause.relatedSections')}>
+      <p className="text-sm muted">{t('clause.otherParts')}</p>
       <div className="row" style={{ gap: 8 }}>
         {links.map((l) => {
           const other = allClauses.find((c) => c.clause_id === l.clauseId);
@@ -50,7 +52,7 @@ function RelatedClauses({
           );
         })}
       </div>
-      <p className="text-xs faint mt-2 mb-0">Linked by matching wording in both sections of this document.</p>
+      <p className="text-xs faint mt-2 mb-0">{t('clause.linkedByWording')}</p>
     </SectionBlock>
   );
 }
@@ -72,24 +74,25 @@ export function ClauseDetail({
   onJump: (clauseId: string) => void;
 }) {
   const [showCounter, setShowCounter] = useState(false);
+  const { t } = useI18n();
 
   // Simple explanations derived from the analysis response fields.
   const whyItMatters = useMemo(() => {
     const base = whitespace(clause.explanation);
     if (base) return base;
-    return 'This section is part of the agreement; its wording sets expectations for both sides.';
-  }, [clause.explanation]);
+    return t('clause.genericExplanation');
+  }, [clause.explanation, t]);
 
   const reviewPoint = useMemo(() => {
     if (clause.risk_level !== 'green') {
       const impact = whitespace(clause.financial_impact);
       if (impact && impact.toLowerCase() !== 'none identified') {
-        return `Pay attention to this wording — it may carry financial consequences. ${impact}`;
+        return `${t('clause.reviewPointFinancial')} ${impact}`;
       }
-      return 'Pay attention to this wording before you sign — it may deserve a second look.';
+      return t('clause.reviewPointGeneric');
     }
-    return 'This wording follows common practice. A quick read is enough unless your situation is unusual.';
-  }, [clause]);
+    return t('clause.reviewPointFine');
+  }, [clause, t]);
 
   const financialNote = useMemo(() => {
     const impact = whitespace(clause.financial_impact || '');
@@ -105,32 +108,32 @@ export function ClauseDetail({
         <div className="row" style={{ gap: 10 }}>
           <AttentionBadge level={clause.risk_level} />
           <Tag>{clause.category}</Tag>
-          {clause.negotiation_needed && <Tag>Suggested revision available</Tag>}
+          {clause.negotiation_needed && <Tag>{t('clause.suggestedRevision')}</Tag>}
         </div>
       </header>
 
-      <SectionBlock title="Original wording">
+      <SectionBlock title={t('clause.originalWording')}>
         <blockquote className="cd-quote">{clause.text}</blockquote>
       </SectionBlock>
 
-      <SectionBlock title="In plain English">
+      <SectionBlock title={t('clause.inPlainEnglish')}>
         <p className="cd-plain">{whyItMatters}</p>
       </SectionBlock>
 
-      <SectionBlock title="Why it may matter">
+      <SectionBlock title={t('clause.whyItMatters')}>
         <p style={{ display: 'flex', gap: 8 }}>
           <Info size={17} className="faint" style={{ flex: 'none', marginTop: 3 }} aria-hidden="true" />
           <span>{reviewPoint}{financialNote ? ` ${financialNote}` : ''}</span>
         </p>
         {financialNote && (
           <p className="cd-money" style={{ marginTop: 8 }}>
-            This section mentions money: {financialNote || '—'}
+            {t('clause.financialMention', { impact: financialNote || '—' })}
           </p>
         )}
       </SectionBlock>
 
       {clause.negotiation_needed && clause.suggested_counter_clause && (
-        <SectionBlock title="Suggested revision">
+        <SectionBlock title={t('clause.suggestedRevisionShort')}>
           <div className="cd-counter">
             {showCounter ? (
               <>
@@ -143,12 +146,12 @@ export function ClauseDetail({
                   </ul>
                 )}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCounter(false)}>
-                  Hide
+                  {t('clause.hide')}
                 </button>
               </>
             ) : (
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCounter(true)}>
-                <MessageSquareText size={15} /> See a fairer wording
+                <MessageSquareText size={15} /> {t('clause.seeFairer')}
               </button>
             )}
           </div>
@@ -157,7 +160,7 @@ export function ClauseDetail({
 
       <RelatedClauses clause={clause} allClauses={allClauses} onJump={onJump} />
 
-      <SectionBlock title="What we compared this with">
+      <SectionBlock title={t('clause.comparedWith')}>
         <EvidencePanel clause={clause} />
       </SectionBlock>
     </article>

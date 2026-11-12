@@ -11,6 +11,10 @@ Quick summary:
 - `POST /chat` — RAG Q&A with source citations
 - `POST /compare` · `POST /drift` — multi-contract comparison / version drift
 - `GET /contracts` · `GET|DELETE /contracts/{id}` — owner-scoped contract storage
+- `GET|POST /contracts/{id}/dates` · `PATCH|DELETE /contracts/{id}/dates/{date_id}` — tracked key dates
+- `GET /reminders` — cross-contract reminder feed (window + overdue)
+- `GET|POST /contracts/{id}/bookmarks` · `DELETE /contracts/{id}/bookmarks/{id}` — saved sections
+- `GET|POST /contracts/{id}/checklist` · `POST /contracts/{id}/checklist/generate` · `PATCH|DELETE /contracts/{id}/checklist/{item_id}` — signing checklist
 - `POST /auth/register` · `POST /auth/login` · `GET /auth/me` — JWT auth (guest mode by default)
 - `GET /fair-clauses` · `POST /fair-clauses/seed` — fair-clause library
 - `GET /history` · `GET /stats` · `DELETE /analyses/{id}` — relational history/stats

@@ -1,14 +1,14 @@
 """Seed a realistic demo workspace for reviews and demos.
 
-Creates a demo account plus a set of fully-analysed contracts (deterministic —
+Creates a demo account plus a set of fully-analysed contracts (deterministic â€”
 no LLM calls, no API key required) so the dashboard, charts, workspace and chat
 all have meaningful data the moment the app opens.
 
 Two scopes are seeded:
 
-  * guest  — documents with ``user_id = NULL`` so the default (no-login) view is
+  * guest  â€” documents with ``user_id = NULL`` so the default (no-login) view is
              populated, which is what most reviewers see first;
-  * demo   — the same documents owned by the demo account, so logging in shows a
+  * demo   â€” the same documents owned by the demo account, so logging in shows a
              populated, owner-scoped workspace.
 
 Usage (from the ``backend`` directory):
@@ -23,15 +23,17 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 
 # Make ``app`` importable when run as ``python scripts/seed_demo.py``.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app import cross_clause as cross_clause_engine  # noqa: E402
 from app import db as vdb  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.database import SessionLocal, init_db, utcnow  # noqa: E402
-from app.models import Contract, User  # noqa: E402
+from app.evidence import verify_analysis_evidence  # noqa: E402
+from app.models import Bookmark, ChecklistItem, Contract, ContractDate, User  # noqa: E402
 from app.schemas import (  # noqa: E402
     AnalysisResult,
     AnalysisSummary,
@@ -39,6 +41,7 @@ from app.schemas import (  # noqa: E402
     ComparisonResult,
     RiskSummary,
 )
+from app.services import checklist as checklist_service  # noqa: E402
 from app.services import contract_service  # noqa: E402
 
 DEMO_EMAIL = "demo@clauseguard.app"
@@ -63,9 +66,11 @@ def _clause(
     counter: str,
     points: list[str],
     probability: int,
-    match: str = "worse",
-    similarity: float = 0.82,
 ) -> AnalyzedClause:
+    # The reference check is a real semantic lookup against the same
+    # fair-clause library the live comparator uses â€” demo rows show genuine
+    # references and similarity, never a hardcoded citation.
+    reference = vdb.compare_to_standard(text, category)
     return AnalyzedClause(
         clause_id=cid,
         category=category,
@@ -76,10 +81,10 @@ def _clause(
         explanation=explanation,
         confidence=0.9,
         comparison=ComparisonResult(
-            standard_match=match,
-            similarity=similarity,
-            reference_clause=None,
-            reference_category=category,
+            standard_match=reference.get("standard_match") or "unknown",
+            similarity=float(reference.get("similarity") or 0.0),
+            reference_clause=reference.get("reference_clause"),
+            reference_category=reference.get("reference_category") or category,
             notes="Compared against the ClauseGuard fair-clause library.",
         ),
         financial_impact=impact,
@@ -128,6 +133,12 @@ def _build(key: str, name: str, text: str, clauses: list[AnalyzedClause]) -> Ana
             total_financial_exposure_inr=exposure,
         ),
         clauses=clauses,
+        # Same deterministic engine the live pipeline runs: archived demo
+        # contracts carry real connection findings and evidence counts.
+        cross_clause=cross_clause_engine.to_out(
+            cross_clause_engine.detect(clauses, semantic=None)
+        ),
+        evidence=verify_analysis_evidence(clauses),
         summary=AnalysisSummary(
             total_analyzed=len(clauses),
             red_flags=red,
@@ -154,7 +165,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
     docs: list[tuple[str, str, str, AnalysisResult, int]] = []
 
     # ---- 1. SaaS subscription -------------------------------------------------
-    name = "SaaS Subscription Agreement — Vertex Analytics"
+    name = "SaaS Subscription Agreement â€” Vertex Analytics"
     text = (
         "SAAS SUBSCRIPTION AGREEMENT\n\n"
         "This Agreement is between Vertex Analytics Pvt. Ltd. (\"Vertex\") and the customer. "
@@ -180,7 +191,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 10,20,000 billed annually in advance", 1020000,
             "Change to monthly billing in arrears with a 30-day payment window and a capped late fee of 1% per month.",
             ["Ask for monthly billing in arrears rather than prepaid.", "Cap late-payment interest at 1% per month."],
-            65, "worse", 0.74,
+            65,
         ),
         _clause(
             "clause_2", "Auto-Renewal",
@@ -191,7 +202,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 10,20,000 per renewal cycle", 1020000,
             "Reduce the notice period to 30 days and allow renewal on a month-to-month basis.",
             ["Negotiate a 30-day notice window.", "Add a renewal price-increase cap."],
-            70, "worse", 0.86,
+            70,
         ),
         _clause(
             "clause_3", "Liability",
@@ -202,7 +213,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Uncapped indemnity exposure", None,
             "Make the indemnity mutual and raise Vertex's liability cap to 12 months of fees.",
             ["Request a mutual indemnity.", "Raise the liability cap to at least the annual fee."],
-            55, "worse", 0.91,
+            55,
         ),
         _clause(
             "clause_4", "Data Privacy",
@@ -214,17 +225,17 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Limit processing to delivering the service, require deletion within 30 days of termination, "
             "and add a standard data-processing addendum.",
             ["Ask for a data-processing agreement (DPA).", "Require data deletion within 30 days of exit."],
-            50, "worse", 0.88,
+            50,
         ),
         _clause(
             "clause_5", "Other",
             "Vertex may suspend the service immediately for any breach, without notice.",
             "yellow", 50,
-            "Immediate suspension for any breach — including a trivial one — can disrupt your operations.",
+            "Immediate suspension for any breach â€” including a trivial one â€” can disrupt your operations.",
             "Operational interruption risk", None,
             "Require written notice and a 15-day cure period before suspension, except for non-payment beyond 30 days.",
             ["Add a cure period before suspension.", "Limit suspension to material breaches."],
-            72, "worse", 0.79,
+            72,
         ),
         _clause(
             "clause_6", "Warranty",
@@ -234,13 +245,13 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Service-availability risk", None,
             "Add a 99.5% uptime SLA with service credits.",
             ["Ask for an uptime SLA and credits.", "Remove the blanket 'as is' disclaimer for availability."],
-            68, "worse", 0.83,
+            68,
         ),
     ]
     docs.append(("saas-vertex", name, text, _build("saas-vertex", name, text, clauses), 96))
 
     # ---- 2. Freelance design contract ----------------------------------------
-    name = "Freelance Design Contract — Nimbus Studio"
+    name = "Freelance Design Contract â€” Nimbus Studio"
     text = (
         "DESIGN SERVICES CONTRACT\n\n"
         "Nimbus Studio will provide brand and product design services to the Client.\n\n"
@@ -260,7 +271,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 75,000 outstanding at a time", 75000,
             "Shorten the balance window to 15 days after written acceptance.",
             ["Define acceptance in writing.", "Shorten the balance window to 15 days."],
-            78, "match", 0.81,
+            78,
         ),
         _clause(
             "clause_2", "Other",
@@ -270,7 +281,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Ownership of all deliverables", None,
             "Assign all delivered work to the Client on payment; keep only a portfolio-use licence for Nimbus.",
             ["Require full IP assignment on payment.", "Limit Nimbus to a showcase licence."],
-            60, "worse", 0.9,
+            60,
         ),
         _clause(
             "clause_3", "Other",
@@ -280,7 +291,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Full fee forfeiture", None,
             "Refund any prepaid amount for work not yet performed, pro-rated to progress.",
             ["Add pro-rated refunds on termination.", "Tie payment milestones to deliverables."],
-            58, "worse", 0.87,
+            58,
         ),
         _clause(
             "clause_4", "Liability",
@@ -290,7 +301,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Capped at Rs 50,000", 50000,
             "Consider raising the cap for gross negligence or wilful misconduct.",
             ["Carve out gross negligence from the cap."],
-            80, "match", 0.76,
+            80,
         ),
         _clause(
             "clause_5", "Dispute",
@@ -300,13 +311,13 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Arbitration cost exposure", None,
             "Split arbitration costs equally and allow good-faith negotiation first.",
             ["Split arbitration costs.", "Add a 30-day negotiation step before arbitration."],
-            70, "worse", 0.84,
+            70,
         ),
     ]
     docs.append(("freelance-nimbus", name, text, _build("freelance-nimbus", name, text, clauses), 61))
 
     # ---- 3. Gym membership ----------------------------------------------------
-    name = "Gym Membership — IronHouse Fitness"
+    name = "Gym Membership â€” IronHouse Fitness"
     text = (
         "GYM MEMBERSHIP AGREEMENT\n\n"
         "1. Fees. Membership is Rs 2,999 per month, auto-debited. A joining fee of Rs 5,000 is non-refundable.\n"
@@ -323,7 +334,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 35,988 per year plus Rs 5,000 joining fee", 40988,
             "Refund the joining fee pro-rata if you cancel within the first 30 days.",
             ["Ask for a refundable joining fee.", "Confirm the auto-debit cancellation process."],
-            75, "match", 0.8,
+            75,
         ),
         _clause(
             "clause_2", "Auto-Renewal",
@@ -333,7 +344,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 2,999 per month", 35988,
             "Allow cancellation any time before the next billing date.",
             ["Request same-day cancellation before renewal.", "Get renewal confirmation by email."],
-            78, "match", 0.85,
+            78,
         ),
         _clause(
             "clause_3", "Liability",
@@ -343,7 +354,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Personal-injury exposure", None,
             "Carve out the gym's negligence and provide adequate supervision and equipment checks.",
             ["Remove the negligence waiver.", "Ask about insurance and safety policies."],
-            45, "worse", 0.93,
+            45,
         ),
         _clause(
             "clause_4", "Data Privacy",
@@ -353,13 +364,13 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Sensitive-data exposure", None,
             "Require explicit opt-in consent and prohibit sharing with insurers and marketers.",
             ["Demand an opt-in for health data.", "Ask what data is shared and with whom."],
-            48, "worse", 0.89,
+            48,
         ),
     ]
     docs.append(("gym-ironhouse", name, text, _build("gym-ironhouse", name, text, clauses), 34))
 
     # ---- 4. Residential lease -------------------------------------------------
-    name = "Residential Lease — Flat 4B, Bengaluru"
+    name = "Residential Lease â€” Flat 4B, Bengaluru"
     text = (
         "RESIDENTIAL LEASE AGREEMENT\n\n"
         "1. Rent. Rent is Rs 42,000 per month, due on the 1st. Late payment attracts Rs 1,000 per day.\n"
@@ -368,7 +379,9 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
         "3. Repairs. The landlord is responsible for structural repairs; the tenant bears all other repairs "
         "regardless of cause.\n"
         "4. Termination. The landlord may terminate with 30 days' notice for any reason.\n"
-        "5. Disputes. Courts in Bengaluru have exclusive jurisdiction.\n"
+        "5. Notice. The current term ends on 31 March 2027. Either party may end this agreement "
+        "with 60 days' written notice.\n"
+        "6. Disputes. Courts in Bengaluru have exclusive jurisdiction.\n"
     )
     clauses = [
         _clause(
@@ -379,7 +392,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 30,000 per month in potential late fees", 360000,
             "Cap the late fee at 5% of monthly rent with a 5-day grace period.",
             ["Cap the daily late fee.", "Add a grace period."],
-            74, "worse", 0.86,
+            74,
         ),
         _clause(
             "clause_2", "Other",
@@ -390,7 +403,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 2,52,000 held interest-free", 252000,
             "Reduce the deposit to three months and require itemised, documentary deductions within 30 days.",
             ["Negotiate a smaller deposit.", "Require written, itemised deductions."],
-            68, "worse", 0.82,
+            68,
         ),
         _clause(
             "clause_3", "Other",
@@ -400,7 +413,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Unbounded repair costs", None,
             "Limit tenant repairs to minor day-to-day upkeep; landlord covers equipment and structural failures.",
             ["Define 'minor repairs' with a cost cap.", "Exclude damage from landlord equipment."],
-            72, "worse", 0.84,
+            72,
         ),
         _clause(
             "clause_4", "Other",
@@ -410,23 +423,33 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Relocation and deposit risk", None,
             "Require a 60-day notice period and a minimum lock-in, or compensation for early termination.",
             ["Ask for a 60-day notice and lock-in period.", "Add compensation for no-fault termination."],
-            62, "worse", 0.88,
+            62,
         ),
         _clause(
-            "clause_5", "Dispute",
+            "clause_5", "Other",
+            "The current term ends on 31 March 2027. Either party may end this agreement with 60 days' written notice.",
+            "yellow", 48,
+            "This 60-day notice requirement conflicts with the 30-day termination right described earlier - one of them may not apply.",
+            "Up to two months of continued rent", 84000,
+            "Use one consistent notice period for both parties throughout the agreement.",
+            ["Ask which notice period actually applies.", "Align both notice clauses before signing."],
+            72,
+        ),
+        _clause(
+            "clause_6", "Dispute",
             "Courts in Bengaluru have exclusive jurisdiction.",
             "green", 25,
             "A local-jurisdiction clause is standard and reasonable here.",
             "None identified", None,
             "No change needed.",
-            ["Standard clause — no action."],
-            88, "match", 0.71,
+            ["Standard clause â€” no action."],
+            88,
         ),
     ]
     docs.append(("lease-flat4b", name, text, _build("lease-flat4b", name, text, clauses), 18))
 
     # ---- 5. Employment offer --------------------------------------------------
-    name = "Employment Offer Letter — Junior Data Analyst"
+    name = "Employment Offer Letter â€” Junior Data Analyst"
     text = (
         "EMPLOYMENT OFFER LETTER\n\n"
         "1. Salary. The annual salary is Rs 6,50,000, reviewed annually at the company's discretion.\n"
@@ -445,7 +468,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Rs 6,50,000 per year", 650000,
             "Add a documented annual review with a defined range or inflation-linked floor.",
             ["Ask for a review framework.", "Clarify bonus and increments."],
-            80, "match", 0.78,
+            80,
         ),
         _clause(
             "clause_2", "Other",
@@ -455,7 +478,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Three months' salary at risk on exit", 162500,
             "Make notice periods symmetrical at 60 days for both parties.",
             ["Request equal notice periods.", "Clarify garden-leave terms."],
-            70, "worse", 0.85,
+            70,
         ),
         _clause(
             "clause_3", "Other",
@@ -465,7 +488,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Ownership of personal projects", None,
             "Limit assignment to IP created in the course of employment using company resources.",
             ["Narrow the IP assignment.", "Carve out personal side projects."],
-            62, "worse", 0.9,
+            62,
         ),
         _clause(
             "clause_4", "Data Privacy",
@@ -475,7 +498,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Privacy exposure", None,
             "Restrict monitoring to company devices during work hours and disclose the policy.",
             ["Ask for the monitoring policy.", "Clarify personal-device rules."],
-            68, "worse", 0.83,
+            68,
         ),
         _clause(
             "clause_5", "Dispute",
@@ -485,7 +508,7 @@ def _documents() -> list[tuple[str, str, str, AnalysisResult, int]]:
             "Loss of court access", None,
             "Preserve statutory remedies and make arbitration optional for the employee.",
             ["Ask to keep statutory rights.", "Clarify who pays arbitration costs."],
-            60, "worse", 0.87,
+            60,
         ),
     ]
     docs.append(("offer-analyst", name, text, _build("offer-analyst", name, text, clauses), 6))
@@ -516,6 +539,83 @@ def _remove_if_present(session, doc_id: str) -> None:
     if existing is not None:
         vdb.delete_document(doc_id)
         contract_service.delete_contract(session, existing)
+
+
+# Demo tracking data. Dates are relative to the day the seeder runs so the
+# reminder feed is meaningful in any review session. Only explicit, real dates
+# from the demo contracts are used; nothing here is presented as new analysis.
+_DEMO_DATES: dict[str, list[tuple[str, int, str, str, int]]] = {
+    "saas-vertex": [
+        ("Subscription renewal", 24, "renewal", "Auto-renews unless cancelled in writing before this date.", 14),
+    ],
+    "lease-flat4b": [
+        ("Monthly rent", 9, "payment", "Next rent cycle under the lease.", 5),
+        ("Lease renewal notice window", 63, "notice", "Serve written notice before the renewal date.", 30),
+    ],
+    "offer-analyst": [
+        ("Proposed joining date", 12, "other", "Date stated in the offer letter.", 3),
+    ],
+}
+
+_DEMO_BOOKMARKS: dict[str, list[tuple[str, str]]] = {
+    "saas-vertex": [("clause_1", "Check the renewal notice window.")],
+    "lease-flat4b": [("clause_2", "Confirm how the deposit is returned.")],
+    "offer-analyst": [("clause_1", "Confirm the compensation breakdown.")],
+}
+
+
+def _seed_tracking(session, label: str, key: str, contract: Contract, result: AnalysisResult) -> None:
+    """Attach user-owned dates, bookmarks and a generated checklist."""
+    tag = f"{label}:{key}"
+    today = date.today()
+
+    for heading, offset, kind, notes, lead in _DEMO_DATES.get(key, []):
+        row_id = str(uuid.uuid5(_NAMESPACE, f"date:{tag}:{heading}"))
+        if session.get(ContractDate, row_id) is None:
+            session.add(
+                ContractDate(
+                    id=row_id,
+                    contract_id=contract.id,
+                    label=heading,
+                    due_date=today + timedelta(days=offset),
+                    kind=kind,
+                    notes=notes,
+                    remind_days_before=lead,
+                )
+            )
+
+    for clause_index, note in _DEMO_BOOKMARKS.get(key, []):
+        row_id = str(uuid.uuid5(_NAMESPACE, f"bookmark:{tag}:{clause_index}"))
+        if session.get(Bookmark, row_id) is None:
+            session.add(
+                Bookmark(
+                    id=row_id,
+                    contract_id=contract.id,
+                    clause_index=clause_index,
+                    note=note,
+                )
+            )
+
+    existing = (
+        session.query(ChecklistItem)
+        .filter(ChecklistItem.contract_id == contract.id)
+        .all()
+    )
+    generated = checklist_service.checklist_from_clauses(
+        [c.model_dump() for c in result.clauses]
+    )
+    for row in checklist_service.missing_rows(existing, generated):
+        session.add(
+            ChecklistItem(
+                id=str(uuid.uuid5(_NAMESPACE, f"check:{tag}:{row.get('clause_index') or row['text'][:40]}")),
+                contract_id=contract.id,
+                clause_index=row.get("clause_index"),
+                text=row["text"],
+                done=False,
+                position=row["position"],
+            )
+        )
+    session.commit()
 
 
 def seed(reset: bool = False) -> int:
@@ -551,6 +651,7 @@ def seed(reset: bool = False) -> int:
                 # Spread creation dates so the activity chart has shape.
                 contract.created_at = utcnow() - timedelta(days=days_ago + offset)
                 session.commit()
+                _seed_tracking(session, label, key, contract, result)
                 created += 1
                 print(f"  + [{label}] {name}")
     finally:

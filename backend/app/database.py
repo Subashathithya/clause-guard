@@ -17,6 +17,19 @@ DATABASE_URL = settings.DATABASE_URL
 _connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=_connect_args, future=True)
 
+if DATABASE_URL.startswith("sqlite"):
+    # SQLite ignores ``ON DELETE CASCADE`` unless foreign-key enforcement is
+    # turned on for every connection. Without this, deleting a contract left
+    # its clause rows behind (orphans that resurfaced as duplicated sections
+    # when a document id was reused, e.g. by the demo seeder).
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

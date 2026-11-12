@@ -1,4 +1,5 @@
 """Pydantic schemas shared across the ClauseGuard API and agents."""
+from datetime import date, datetime
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -135,6 +136,29 @@ class CrossClauseReportOut(BaseModel):
     feedback: str = ""
 
 
+# ----------------------------------------------------------- evidence report
+# Deterministic, per-clause evidence flags shipped with every analysis. These
+# state *what was checked*, never a new risk verdict: the UI can show how many
+# sections were compared against the fair-clause library without exposing any
+# clause text or internal scoring details.
+class EvidenceClauseOut(BaseModel):
+    text: bool = False
+    category: bool = False
+    risk_consistent: bool = False
+    reference_present: bool = False
+    reference_credible: bool = False
+    supported: bool = False
+    reference_backed: bool = False
+
+
+class EvidenceReportOut(BaseModel):
+    total: int = 0
+    supported: int = 0
+    unsupported: int = 0
+    reference_backed: int = 0
+    by_clause: dict[str, EvidenceClauseOut] = Field(default_factory=dict)
+
+
 # --------------------------------------------------- version comparison (drift)
 # Wire models for the clause-level change report returned by ``POST /drift``.
 # Every change is grounded in the two real clause IDs; values are the
@@ -180,9 +204,85 @@ class AnalysisResult(BaseModel):
     risk_summary: RiskSummary = Field(default_factory=RiskSummary)
     clauses: list[AnalyzedClause] = Field(default_factory=list)
     cross_clause: CrossClauseReportOut = Field(default_factory=CrossClauseReportOut)
+    evidence: EvidenceReportOut = Field(default_factory=EvidenceReportOut)
     summary: AnalysisSummary = Field(default_factory=AnalysisSummary)
     agent_trace: list[dict] = Field(default_factory=list)
     status: str = "SUCCESS"
+
+
+# ------------------------------------------------------- Phase 4: tracking
+# User-owned dates, bookmarks and checklist items. These are intentionally
+# separate from the analysis payload: the analysis can be re-run, while the
+# user's reminders, saved sections and negotiation progress must survive it.
+DateKind = Literal["payment", "renewal", "notice", "termination", "other"]
+
+
+class ContractDateCreate(BaseModel):
+    label: str = Field(min_length=1, max_length=120)
+    due_date: date
+    kind: DateKind = "other"
+    notes: str = Field(default="", max_length=1000)
+    remind_days_before: int = Field(default=7, ge=0, le=365)
+
+
+class ContractDateUpdate(BaseModel):
+    label: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    due_date: Optional[date] = None
+    kind: Optional[DateKind] = None
+    notes: Optional[str] = Field(default=None, max_length=1000)
+    remind_days_before: Optional[int] = Field(default=None, ge=0, le=365)
+
+
+class ContractDateOut(BaseModel):
+    id: str
+    contract_id: str
+    label: str
+    due_date: date
+    kind: str
+    notes: str = ""
+    remind_days_before: int = 7
+    created_at: datetime
+    days_until: int
+    remind_on: date
+    is_overdue: bool = False
+
+
+class ReminderOut(ContractDateOut):
+    contract_name: str
+
+
+class BookmarkCreate(BaseModel):
+    clause_index: str = Field(min_length=1, max_length=30)
+    note: str = Field(default="", max_length=1000)
+
+
+class BookmarkOut(BaseModel):
+    id: str
+    contract_id: str
+    clause_index: str
+    note: str = ""
+    created_at: datetime
+
+
+class ChecklistItemCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+    clause_index: Optional[str] = Field(default=None, max_length=30)
+
+
+class ChecklistItemUpdate(BaseModel):
+    text: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    done: Optional[bool] = None
+
+
+class ChecklistItemOut(BaseModel):
+    id: str
+    contract_id: str
+    clause_index: Optional[str] = None
+    text: str
+    done: bool = False
+    position: int = 0
+    created_at: datetime
+
 
 
 # ------------------------------------------------------- LLM wire schemas

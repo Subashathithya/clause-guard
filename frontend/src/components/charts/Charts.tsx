@@ -15,6 +15,8 @@ import {
   YAxis,
 } from 'recharts';
 
+import { useI18n } from '../../i18n/I18nProvider';
+
 export const CHART = {
   brand: '#4f46e5',
   brandLight: '#6366f1',
@@ -57,15 +59,16 @@ export function RiskDonut({
   green: number;
   height?: number;
 }) {
+  const { t } = useI18n();
   const data = [
-    { name: 'High', value: red, color: CHART.red },
-    { name: 'Moderate', value: yellow, color: CHART.amber },
-    { name: 'Low', value: green, color: CHART.green },
+    { name: t('workspace.levelHigh'), value: red, color: CHART.red },
+    { name: t('workspace.levelMid'), value: yellow, color: CHART.amber },
+    { name: t('workspace.levelLow'), value: green, color: CHART.green },
   ].filter((d) => d.value > 0);
   const total = red + yellow + green;
 
   if (total === 0) {
-    return <div className="chart-empty">No clauses analysed yet</div>;
+    return <div className="chart-empty">{t('charts.noSections')}</div>;
   }
 
   return (
@@ -86,10 +89,10 @@ export function RiskDonut({
               <Cell key={d.name} fill={d.color} />
             ))}
           </Pie>
-          <Tooltip contentStyle={tooltipStyle} formatter={(v, n) => [`${v} clauses`, String(n)]} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v, n) => [`${v} ${t('charts.sectionsLabel')}`, String(n)]} />
         </PieChart>
       </ResponsiveContainer>
-      <DonutCenter total={total} label="clauses" />
+      <DonutCenter total={total} label={t('charts.sectionsLabel')} />
     </div>
   );
 }
@@ -101,7 +104,8 @@ export function CategoryBars({
   data: { name: string; value: number }[];
   height?: number;
 }) {
-  if (data.length === 0) return <div className="chart-empty">Nothing to chart yet</div>;
+  const { t } = useI18n();
+  if (data.length === 0) return <div className="chart-empty">{t('charts.nothingToChart')}</div>;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -116,7 +120,7 @@ export function CategoryBars({
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} formatter={(v) => [`${v}`, 'clauses']} />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} formatter={(v) => [`${v}`, t('charts.sectionsLabel')]} />
           <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
             {data.map((d, i) => (
               <Cell key={d.name} fill={i === 0 ? CHART.brand : i === 1 ? CHART.brandLight : '#a5b4fc'} />
@@ -135,7 +139,8 @@ export function ActivityArea({
   data: { label: string; count: number }[];
   height?: number;
 }) {
-  if (data.length === 0) return <div className="chart-empty">No activity yet</div>;
+  const { t } = useI18n();
+  if (data.length === 0) return <div className="chart-empty">{t('charts.noActivity')}</div>;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -149,7 +154,7 @@ export function ActivityArea({
           <CartesianGrid stroke={CHART.grid} vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: CHART.axis }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 11, fill: CHART.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} contracts`, 'Analysed']} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} ${t('charts.contractsWord')}`, t('charts.analyzed')]} />
           <Area
             type="monotone"
             dataKey="count"
@@ -172,7 +177,8 @@ export function RiskStackedBars({
   data: { name: string; high: number; moderate: number; low: number }[];
   height?: number;
 }) {
-  if (data.length === 0) return <div className="chart-empty">Nothing to chart yet</div>;
+  const { t } = useI18n();
+  if (data.length === 0) return <div className="chart-empty">{t('charts.nothingToChart')}</div>;
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -182,9 +188,9 @@ export function RiskStackedBars({
           <YAxis tick={{ fontSize: 11, fill: CHART.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }} />
           <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
-          <Bar dataKey="low" name="Low" stackId="a" fill={CHART.green} radius={[0, 0, 0, 0]} barSize={26} />
-          <Bar dataKey="moderate" name="Moderate" stackId="a" fill={CHART.amber} />
-          <Bar dataKey="high" name="High" stackId="a" fill={CHART.red} radius={[5, 5, 0, 0]} />
+          <Bar dataKey="low" name={t('workspace.levelLow')} stackId="a" fill={CHART.green} radius={[0, 0, 0, 0]} barSize={26} />
+          <Bar dataKey="moderate" name={t('workspace.levelMid')} stackId="a" fill={CHART.amber} />
+          <Bar dataKey="high" name={t('workspace.levelHigh')} stackId="a" fill={CHART.red} radius={[5, 5, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -206,7 +212,7 @@ export function ChartCard({
     <div className="card card-pad chart-card">
       <div className="card-header">
         <div>
-          <h3 className="card-title">{title}</h3>
+          <h2 className="card-title">{title}</h2>
           {subtitle && <p className="card-subtitle mt-2">{subtitle}</p>}
         </div>
         {actions && <div>{actions}</div>}

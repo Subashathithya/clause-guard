@@ -16,18 +16,17 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app import cross_clause, llm
-from app.observability import observability
 from app.agents.compare_agent import CompareAgent
 from app.agents.extract_agent import ExtractAgent
 from app.agents.negotiator_agent import NegotiateAgent
 from app.agents.ranker_agent import RankAgent
-from app.evidence import verify_evidence
-from app.cross_clause import detect as _detect_edges, to_out as _cross_out
+from app.evidence import verify_analysis_evidence
 from app.schemas import (
     AnalysisResult,
     AnalysisSummary,
     AnalyzedClause,
     ComparisonResult,
+    CrossClauseReportOut,
     LLMSummaryOutput,
     NegotiatorOutput,
     RankerOutput,
@@ -67,7 +66,12 @@ class Orchestrator:
             return AnalysisResult(
                 document_name=document_name,
                 status="EXTRACTOR_ERROR",
-                agent_trace=[{"agent": "Extractor", "error": str(exc)}],
+                # The raw error stays in the log; the response says only
+                # that the document could not be read.
+                agent_trace=[{
+                    "agent": "Extractor",
+                    "error": "We could not read this document.",
+                }],
             )
         trace.append({"agent": "Extractor", "clauses": len(extracted.clauses),
                       "ms": round((time.perf_counter() - t0) * 1000)})
@@ -86,26 +90,17 @@ class Orchestrator:
                 except Exception as exc:  # noqa: BLE001
                     self.agent_flags.append("Comparator")
                     logger.warning("Comparator failed for %s: %s", clause.clause_id, exc)
-                    comparisons[clause.clause_id] = ComparisonResult(notes=str(exc))
+                    comparisons[clause.clause_id] = ComparisonResult(
+                        notes="The reference comparison was unavailable for this section."
+                    )
         trace.append({"agent": "Comparator", "comparisons": len(comparisons),
                       "ms": round((time.perf_counter() - t0) * 1000)})
 
         # Evidence verification (deterministic; never leaks clause text).
-        # Every risk verdict must be *supported* by a real, checkable reference
-        # before it ships as a finding. Unsupported verdicts are kept out of the
-        # summary so we never present an unverifiable claim as fact.
-        t0 = time.perf_counter()
-        clause_map = {c.clause_id: c for c in extracted.clauses}
-        evidence = verify_evidence(extracted.clauses, clause_map.get)
-        trace.append({"agent": "Evidence", "checked": evidence["total"],
-                      "supported": evidence["supported"],
-                      "unsupported": evidence["unsupported"],
-                      "ms": round((time.perf_counter() - t0) * 1000)})
-        observability.evidence(
-            checked=evidence["total"],
-            supported=evidence["supported"],
-            unsupported=evidence["unsupported"],
-        )
+        # A clause is only *supported* when its text, category and RAG
+        # reference all check out. The report is attached to AnalysisResult
+        # below (once the analyzed clauses exist) so the API and UI describe
+        # what was verified without inventing a second, always-empty pass.
 
         # 5. Cross-clause detection (deterministic; §10: semantic=None ⇒ never
         # an LLM/semantic call). Relationships + inconsistencies are mapped to
@@ -203,30 +198,30 @@ class Orchestrator:
             )
 
         # Evidence verification (deterministic, no clause text in observability):
-        # every comparison that claims a similarity/reference must be backed by a
-        # real, non-empty clause reference — unsupported claims are recorded but
-        # never shipped as if they were grounded (privacy: only IDs/flags logged).
+        # every compared claim must be backed by a real, non-empty fair-clause
+        # reference, and the risk band must be internally consistent with its
+        # score. The report ships as aggregate counts + per-clause flags; it
+        # never upgrades or suppresses a verdict, so users keep seeing every
+        # section while knowing what was checked.
         t0 = time.perf_counter()
-        evidence = verify_evidence(analyzed, lambda cid: by_id.get(cid))
-        observability.evidence(
-            checked=evidence["total"],
-            supported=evidence["supported"],
-            unsupported=evidence["unsupported"],
-        )
+        evidence = verify_analysis_evidence(analyzed)
         trace.append({"agent": "Evidence", "checked": evidence["total"],
                       "supported": evidence["supported"],
                       "unsupported": evidence["unsupported"],
+                      "reference_backed": evidence["reference_backed"],
                       "ms": round((time.perf_counter() - t0) * 1000)})
 
         analyzed.sort(key=lambda c: c.risk_score, reverse=True)
         risk_summary = self._aggregate(analyzed)
-        summary = self._synthesize(document_name, analyzed, risk_summary)
+        summary = self._synthesize(document_name, analyzed, risk_summary, cross_out)
 
         result = AnalysisResult(
             document_name=document_name,
             total_clauses=len(analyzed),
             risk_summary=risk_summary,
             clauses=analyzed,
+            cross_clause=cross_out,
+            evidence=evidence,
             summary=summary,
             agent_trace=trace,
             status="SUCCESS",
@@ -259,8 +254,48 @@ class Orchestrator:
         )
 
     @staticmethod
+    def _fallback_priorities(
+        clauses: list[AnalyzedClause], cross: CrossClauseReportOut
+    ) -> list[str]:
+        """Deterministic, user-facing priorities when synthesis is unavailable.
+
+        Inconsistencies come first because they describe two real sections that
+        disagree; the remaining slots name the highest-risk categories. Nothing
+        here invents a finding — every line is built from an existing clause.
+        """
+        priorities: list[str] = []
+        for inc in cross.inconsistencies[:2]:
+            values = " vs ".join(v for v in (inc.value_a, inc.value_b) if v)
+            detail = f" ({values})" if values else ""
+            priorities.append(
+                f"Check the two sections that give different {inc.kind}{detail}."
+            )
+
+        seen_categories: set[str] = set()
+        for clause in sorted(clauses, key=lambda c: c.risk_score, reverse=True):
+            if clause.risk_level == "green" or clause.category in seen_categories:
+                continue
+            seen_categories.add(clause.category)
+            first_sentence = (clause.explanation or "").strip().split(". ")[0].strip()
+            first_sentence = first_sentence.rstrip(".")
+            if len(first_sentence) > 140:
+                first_sentence = first_sentence[:137].rstrip() + "..."
+            if first_sentence:
+                priorities.append(
+                    f"Review the {clause.category} section: {first_sentence}."
+                )
+            else:
+                priorities.append(f"Review the {clause.category} section.")
+            if len(priorities) >= 3:
+                break
+        return priorities[:3]
+
+    @staticmethod
     def _synthesize(
-        document_name: str, clauses: list[AnalyzedClause], risk: RiskSummary
+        document_name: str,
+        clauses: list[AnalyzedClause],
+        risk: RiskSummary,
+        cross: CrossClauseReportOut,
     ) -> AnalysisSummary:
         if not clauses:
             return AnalysisSummary(recommendation="No clauses could be extracted from this document.")
@@ -269,18 +304,29 @@ class Orchestrator:
             f"- [{c.risk_level.upper()} {c.risk_score}] {c.category}: {c.explanation[:180]}"
             for c in clauses
         )
+        cross_notes = "\n".join(
+            f"- Two sections set different {i.kind} values "
+            f"({i.value_a} vs {i.value_b})."
+            for i in cross.inconsistencies
+        )
+        cross_block = (
+            f"\nCROSS-SECTION NOTES (possible internal disagreements):\n{cross_notes}\n"
+            if cross_notes
+            else ""
+        )
         prompt = f"""Document: {document_name}
 Overall risk: {risk.overall_risk} (average score {risk.average_risk_score})
 Counts: {risk.red_count} red, {risk.yellow_count} yellow, {risk.green_count} green
 
 CLAUSE DIGEST:
 {digest}
-
+{cross_block}
 Write an executive summary for the consumer. Return ONLY JSON:
 {{
   "recommendation": "<2-4 sentence actionable recommendation>",
   "top_priorities": ["<most important clause to renegotiate>", "<second>", "<third>"]
 }}"""
+        fallback_priorities = Orchestrator._fallback_priorities(clauses, cross)
         try:
             validated_data, _ = llm.chat_json_validated(
                 [
@@ -293,13 +339,14 @@ Write an executive summary for the consumer. Return ONLY JSON:
             )
             if validated_data is None:
                 raise ValueError("LLM returned no valid summary output")
+            priorities = [str(p) for p in (validated_data.top_priorities or [])][:3]
             return AnalysisSummary(
                 total_analyzed=len(clauses),
                 red_flags=risk.red_count,
                 warnings=risk.yellow_count,
                 safe=risk.green_count,
                 recommendation=str(validated_data.recommendation).strip(),
-                top_priorities=[str(p) for p in (validated_data.top_priorities or [])][:3],
+                top_priorities=priorities or fallback_priorities,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Summary synthesis failed: %s", exc)
@@ -312,6 +359,7 @@ Write an executive summary for the consumer. Return ONLY JSON:
                     "Review the red and yellow clauses below and use the suggested "
                     "counter-clauses when negotiating."
                 ),
+                top_priorities=fallback_priorities,
             )
 
 

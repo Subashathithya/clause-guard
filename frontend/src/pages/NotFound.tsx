@@ -1,19 +1,24 @@
 import { Link } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
+import { Shield, ShieldAlert } from 'lucide-react';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
-      <div className="text-center" style={{ maxWidth: 440 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: '50%', background: 'var(--brand-50)', color: 'var(--brand-600)', marginBottom: 'var(--s4)' }}>
+    <div className="notfound-page">
+      <div className="notfound-card">
+        <span className="notfound-icon">
           <ShieldAlert size={30} />
+        </span>
+        <h1>{t('notFound.title')}</h1>
+        <p>{t('notFound.body')}</p>
+        <div className="notfound-actions">
+          <Link to="/dashboard" className="btn btn-primary">{t('nav.dashboard')}</Link>
+          <Link to="/" className="btn btn-secondary">{t('nav.home')}</Link>
         </div>
-        <h1>This page got lost in the fine print</h1>
-        <p className="muted">We couldn’t find the page you were looking for.</p>
-        <div className="row-spread" style={{ justifyContent: 'center', gap: 12 }}>
-          <Link to="/dashboard" className="btn btn-primary">Go to Dashboard</Link>
-          <Link to="/" className="btn btn-secondary">Back to home</Link>
-        </div>
+        <Link to="/" className="notfound-brand">
+          <Shield size={16} /> ClauseGuard
+        </Link>
       </div>
     </div>
   );

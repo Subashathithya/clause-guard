@@ -8,25 +8,27 @@ import { Card, EmptyState, ErrorState, PageHeader } from '../components/ui/data'
 import { Select, SkeletonLines } from '../components/ui/primitives';
 import { ContractCard } from '../components/contract/ContractCard';
 import { useToast } from '../components/ui/overlays';
+import { useI18n } from '../i18n/I18nProvider';
 
 type AttentionFilter = 'all' | 'attention' | 'careful';
 type SortKey = 'recent' | 'name' | 'sections';
 
 const OPTIONS = {
   attention: [
-    { value: 'all', label: 'All contracts' },
-    { value: 'attention', label: 'Has sections to review' },
-    { value: 'careful', label: 'Has sections to review carefully' },
+    { value: 'all', key: 'contracts.allContracts' },
+    { value: 'attention', key: 'contracts.hasSectionsToReview' },
+    { value: 'careful', key: 'contracts.hasSectionsCareful' },
   ],
   sort: [
-    { value: 'recent', label: 'Newest first' },
-    { value: 'name', label: 'Name A–Z' },
-    { value: 'sections', label: 'Most sections' },
+    { value: 'recent', key: 'contracts.newestFirst' },
+    { value: 'name', key: 'contracts.nameAz' },
+    { value: 'sections', key: 'contracts.mostSections' },
   ],
 };
 
 export default function ContractsPage() {
   const toast = useToast();
+  const { t } = useI18n();
   const { value: contracts, loading, error, retry, setValue } = useAsync<Contract[]>(() => api.contracts(), []);
   const [search, setSearch] = useState('');
   const [attention, setAttention] = useState<AttentionFilter>('all');
@@ -56,18 +58,18 @@ export default function ContractsPage() {
     try {
       await api.deleteContract(id);
       setValue((prev) => (prev || []).filter((c) => c.document_id !== id));
-      toast.push('Contract removed from your workspace.', 'success');
+      toast.push(t('common.contractRemoved'), 'success');
     } catch (err) {
-      toast.push(err instanceof Error ? err.message : 'Could not remove that contract.', 'error');
+      toast.push(err instanceof Error ? err.message : t('common.couldNotRemove'), 'error');
     }
   };
 
   return (
     <div>
       <PageHeader
-        title="My contracts"
-        lead="Every document you’ve analysed, in one place."
-        actions={<Link to="/analyze" className="btn btn-primary">Analyze new contract</Link>}
+        title={t('contracts.title')}
+        lead={t('contracts.lead')}
+        actions={<Link to="/analyze" className="btn btn-primary">{t('contracts.analyzeNew')}</Link>}
       />
 
       {loading && !contracts ? (
@@ -77,9 +79,9 @@ export default function ContractsPage() {
       ) : !contracts || contracts.length === 0 ? (
         <Card>
           <EmptyState
-            title="No contracts yet"
-            description="Once you analyse a contract it will appear here so you can reopen it anytime."
-            action={<Link to="/analyze" className="btn btn-primary">Analyse your first contract</Link>}
+            title={t('contracts.noContractsYet')}
+            description={t('contracts.noContractsYetBody')}
+            action={<Link to="/analyze" className="btn btn-primary">{t('contracts.analyzeFirst')}</Link>}
           />
         </Card>
       ) : (
@@ -90,34 +92,38 @@ export default function ContractsPage() {
               <input
                 type="search"
                 className="search-input"
-                placeholder="Search contracts…"
+                placeholder={t('contracts.searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                aria-label="Search contracts"
+                aria-label={t('contracts.searchLabel')}
               />
             </div>
             <div className="row" style={{ gap: 10 }}>
               <Select
-                options={OPTIONS.attention}
+                options={OPTIONS.attention.map((o) => ({ value: o.value, label: t(o.key) }))}
                 value={attention}
                 onChange={(e) => setAttention(e.target.value as AttentionFilter)}
-                aria-label="Filter by attention level"
+                aria-label={t('contracts.filterLabel')}
               />
               <Select
-                options={OPTIONS.sort}
+                options={OPTIONS.sort.map((o) => ({ value: o.value, label: t(o.key) }))}
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
-                aria-label="Sort contracts"
+                aria-label={t('contracts.sortLabel')}
               />
             </div>
           </div>
 
-          <p className="text-sm faint mt-3">{filtered.length} contract{filtered.length === 1 ? '' : 's'}</p>
+          <p className="text-sm faint mt-3">
+            {filtered.length === 1
+              ? t('contracts.countOne', { count: filtered.length })
+              : t('contracts.countMany', { count: filtered.length })}
+          </p>
 
           <div className="contract-grid mt-3">
             {filtered.length === 0 ? (
               <Card>
-                <EmptyState title="No matching contracts" description="Try a different search or clear the filters." />
+                <EmptyState title={t('contracts.noMatching')} description={t('contracts.tryDifferentSearch')} />
               </Card>
             ) : (
               filtered.map((c) => <ContractCard key={c.document_id} contract={c} onDelete={handleDelete} />)

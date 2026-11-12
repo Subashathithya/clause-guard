@@ -18,8 +18,21 @@ Unless noted, requests and responses are `application/json`.
 | POST | `/compare` | Per-category risk matrix across 2–5 contracts |
 | POST | `/drift` | Term drift detection between 2 contract versions |
 | GET | `/contracts` | List your indexed contracts (owner-scoped; guests see anonymous runs) |
-| GET | `/contracts/{id}` | Fetch a stored analysis |
+| GET | `/contracts/{id}` | Fetch a stored analysis (includes `date_suggestions`) |
 | DELETE | `/contracts/{id}` | Delete a contract + its vectors + relational rows |
+| GET | `/contracts/{id}/dates` | Key dates you track for this contract |
+| POST | `/contracts/{id}/dates` | Add a tracked date (label, due date, type, lead time) |
+| PATCH | `/contracts/{id}/dates/{date_id}` | Update a tracked date |
+| DELETE | `/contracts/{id}/dates/{date_id}` | Remove a tracked date |
+| GET | `/reminders` | Reminder feed across your contracts (`?days=30&include_overdue=true`) |
+| GET | `/contracts/{id}/bookmarks` | Sections you saved |
+| POST | `/contracts/{id}/bookmarks` | Save a section (idempotent per section) |
+| DELETE | `/contracts/{id}/bookmarks/{bookmark_id}` | Remove a saved section |
+| GET | `/contracts/{id}/checklist` | Your signing checklist for this contract |
+| POST | `/contracts/{id}/checklist` | Add your own checklist step |
+| POST | `/contracts/{id}/checklist/generate` | Add steps derived from this contract's analysis |
+| PATCH | `/contracts/{id}/checklist/{item_id}` | Edit a step or tick it off |
+| DELETE | `/contracts/{id}/checklist/{item_id}` | Delete a step |
 | POST | `/auth/register` | Create an account (email + password) |
 | POST | `/auth/login` | Login → JWT Bearer token |
 | GET | `/auth/me` | Current user profile + monthly quota (Bearer token) |
@@ -137,6 +150,70 @@ Response: `overall_delta`, `overall_direction`, and per-category
 GET  /contracts               → { "contracts": [{document_id, document_name, char_count, created_at, ...}] }
 GET  /contracts/{id}          → stored AnalysisResult
 DELETE /contracts/{id}        → { "status", "deleted" }
+```
+
+## Tracking: dates, reminders, bookmarks and checklists
+
+Owner-scoped like every other contract endpoint — signed-in users only see their own
+records, guests only the legacy (`user_id IS NULL`) ones. Deleting a contract removes
+its dates, bookmarks and checklist through foreign-key cascade.
+
+```
+GET  /contracts/{id}/dates              → { "dates": [{id, label, due_date, kind, notes,
+                                                remind_days_before, days_until, remind_on,
+                                                is_overdue, created_at}] }
+POST /contracts/{id}/dates              Body: { label, due_date, kind?, notes?, remind_days_before? } → 201 date
+PATCH /contracts/{id}/dates/{date_id}   Body: any of the same fields        → 200 date
+DELETE /contracts/{id}/dates/{date_id}  → { "status", "deleted" }
+```
+
+`kind` is one of `payment`, `renewal`, `notice`, `termination`, `other`.
+`remind_days_before` is the lead time for the reminder (0 = on the day).
+
+```
+GET /reminders?days=30&include_overdue=true
+     → { "days", "today", "overdue", "reminders": [{ …date fields, "contract_id", "contract_name" }] }
+```
+
+Only dates inside the window are returned; past-due dates are included and counted
+in `overdue` unless `include_overdue=false`.
+
+```
+GET  /contracts/{id}/bookmarks          → { "bookmarks": [{id, clause_index, note, created_at}] }
+POST /contracts/{id}/bookmarks          Body: { clause_index, note? }  → 200 bookmark (idempotent)
+DELETE /contracts/{id}/bookmarks/{id}   → { "status", "deleted" }
+```
+
+```
+GET   /contracts/{id}/checklist              → { "items": [{id, clause_index, text, done, position}] }
+POST  /contracts/{id}/checklist              Body: { text, clause_index? }  → 201 item
+POST  /contracts/{id}/checklist/generate     → { "added", "items" }
+PATCH /contracts/{id}/checklist/{item_id}    Body: { text?, done? }  → 200 item
+DELETE /contracts/{id}/checklist/{item_id}   → { "status", "deleted" }
+```
+
+`POST /checklist/generate` is additive and idempotent: steps already linked to a
+section are not duplicated, and steps you wrote yourself are never touched. It uses
+only the stored analysis of that contract (its talking points and suggested
+rewrites) — no extra LLM calls.
+
+### Date suggestions
+
+`GET /contracts/{id}` also returns `date_suggestions`: explicit calendar dates found
+in the clause text, for the user to consider. Relative wording such as *"within 30
+days"* is deliberately **not** turned into a date.
+
+```json
+"date_suggestions": [
+  {
+    "date": "2027-03-31",
+    "label": "Date mentioned in the Other section",
+    "kind": "notice",
+    "clause_id": "clause_5",
+    "clause_index": "clause_5",
+    "context": "The current term ends on 31 March 2027. …"
+  }
+]
 ```
 
 ## Fair-clause library

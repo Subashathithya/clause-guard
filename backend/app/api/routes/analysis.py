@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import db as vdb
 from app import uploads
 from app.agents.orchestrator import run_orchestrator
+from app.core.errors import public_error
 from app.core.security import get_optional_user
 from app.database import get_db
 from app.models import User
@@ -88,8 +89,13 @@ async def analyze_contract(
     try:
         result = run_orchestrator(text, input_data.document_name)
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Pipeline failed")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+        # The cause is logged with the reference; the caller gets plain
+        # language, never the internal error text.
+        raise public_error(
+            500,
+            "We could not finish that analysis. Please try again in a moment.",
+            exc,
+        ) from exc
 
     if result.status == "NO_CLAUSES":
         return result.model_dump()
@@ -116,21 +122,28 @@ async def upload_contract(
         hint = " (Legacy .doc is not supported - save as .docx or PDF.)" if file_type == "doc" else ""
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {file.filename or file.content_type}{hint}",
+            detail=f"Unsupported file type{hint}. Use a PDF, DOCX, TXT or Markdown file.",
         )
 
     try:
         text = uploads.extract_text(content, file.content_type or "", file.filename or "")
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise public_error(
+            400,
+            "We could not read the text in that file. Try a PDF, DOCX, TXT or Markdown file.",
+            exc,
+        ) from exc
     text = _require_minimum_length(text)
 
     remaining, _, anon_ip = _quota_guard(request, db, user)
     try:
         result = run_orchestrator(text, document_name)
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Pipeline failed")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+        raise public_error(
+            500,
+            "We could not finish that analysis. Please try again in a moment.",
+            exc,
+        ) from exc
 
     if result.status == "NO_CLAUSES":
         return result.model_dump()

@@ -1,5 +1,5 @@
 import type { jsPDF as JsPdf } from 'jspdf';
-import type { AnalysisResult, Clause } from '../types';
+import type { AnalysisResult, ChecklistItem, Clause, ContractDate } from '../types';
 import { attentionOf, categoryLabel } from './format';
 
 /* Brand palette (RGB) — mirrors src/styles/tokens.css */
@@ -79,7 +79,29 @@ function sectionTitle(doc: JsPdf, y: number, text: string): number {
  * Build and download a branded PDF report for one analysed contract.
  * The PDF libraries are loaded on demand so they stay out of the initial bundle.
  */
-export async function downloadAnalysisReport(analysis: AnalysisResult): Promise<void> {
+export interface ReportExtras {
+  dates?: ContractDate[];
+  checklist?: ChecklistItem[];
+}
+
+const DATE_KIND_LABELS: Record<string, string> = {
+  payment: 'Payment',
+  renewal: 'Renewal',
+  notice: 'Notice',
+  termination: 'Termination',
+  other: 'Other',
+};
+
+function prettyDay(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return clean(iso, 30);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export async function downloadAnalysisReport(
+  analysis: AnalysisResult,
+  extras: ReportExtras = {}
+): Promise<void> {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
@@ -125,7 +147,7 @@ export async function downloadAnalysisReport(analysis: AnalysisResult): Promise<
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
   doc.text(
-    `${analysis.total_clauses} sections analysed  ·  average risk score ${avg.toFixed(1)}/100  ·  exposure ${money(summary?.total_financial_exposure_inr)}`,
+    `${analysis.total_clauses} sections analyzed  ·  average risk score ${avg.toFixed(1)}/100  ·  exposure ${money(summary?.total_financial_exposure_inr)}`,
     MARGIN,
     y
   );
@@ -152,7 +174,7 @@ export async function downloadAnalysisReport(analysis: AnalysisResult): Promise<
     theme: 'plain',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.6, textColor: INK },
     body: [
-      ['Sections analysed', String(s?.total_analyzed ?? analysis.total_clauses)],
+      ['Sections analyzed', String(s?.total_analyzed ?? analysis.total_clauses)],
       ['Review carefully', String(s?.red_flags ?? 0)],
       ['Worth a look', String(s?.warnings ?? 0)],
       ['Looks fine', String(s?.safe ?? 0)],
@@ -233,6 +255,78 @@ export async function downloadAnalysisReport(analysis: AnalysisResult): Promise<
       doc.text(explanation.slice(0, 4), MARGIN + 4, y);
       y += explanation.slice(0, 4).length * 3.6 + 4;
     }
+  }
+
+  /* ------------------------------------------------------------- key dates */
+  const dates = extras.dates || [];
+  if (dates.length > 0) {
+    if (y > 230) {
+      doc.addPage();
+      y = 22;
+    }
+    y = sectionTitle(doc, y, 'Key dates and reminders');
+    autoTable(doc, {
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN },
+      head: [['Date', 'What it is', 'Type', 'Reminder', 'Status']],
+      body: dates.map((d) => [
+        prettyDay(d.due_date),
+        clean(d.label, 80),
+        DATE_KIND_LABELS[d.kind] || 'Other',
+        d.remind_days_before === 0
+          ? `On ${prettyDay(d.due_date)}`
+          : `${prettyDay(d.remind_on)} (${d.remind_days_before}d before)`,
+        d.is_overdue ? 'Overdue' : d.days_until === 0 ? 'Today' : `In ${d.days_until}d`,
+      ]),
+      theme: 'grid',
+      styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.6, textColor: INK, lineColor: LINE, lineWidth: 0.15, valign: 'top' },
+      headStyles: { fillColor: BRAND, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      columnStyles: {
+        0: { cellWidth: 32 },
+        1: { cellWidth: 62 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 42 },
+        4: { cellWidth: CONTENT_W - 32 - 62 - 22 - 42, halign: 'center' },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const row = dates[data.row.index];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = row?.is_overdue ? RED : row?.days_until === 0 ? AMBER : GREEN;
+        }
+      },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  }
+
+  /* ------------------------------------------------------------- checklist */
+  const checklist = extras.checklist || [];
+  if (checklist.length > 0) {
+    if (y > 238) {
+      doc.addPage();
+      y = 22;
+    }
+    const done = checklist.filter((i) => i.done).length;
+    y = sectionTitle(doc, y, `Before you sign (${done}/${checklist.length} done)`);
+    for (const item of checklist) {
+      const lines = doc.splitTextToSize(clean(item.text, 320), CONTENT_W - 8);
+      const needed = lines.length * 3.8 + 2.4;
+      if (y + needed > 280) {
+        doc.addPage();
+        y = 22;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...(item.done ? GREEN : INK));
+      doc.text(item.done ? '[x]' : '[ ]', MARGIN, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...(item.done ? MUTED : INK));
+      doc.text(lines, MARGIN + 8, y);
+      y += needed;
+    }
+    y += 4;
   }
 
   /* ---------------------------------------------------------------- footer */

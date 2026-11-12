@@ -42,13 +42,30 @@ CATEGORY_EDGES: dict[str, set[str]] = {
 }
 
 # Deterministic conflict detectors: (normalised-keyword, regex, human label).
-# The regex captures the *value* the clause names so the report can state
-# "30 days" vs "90 days" without asserting which is correct.
+# The regex captures the *value* the clause names (number + unit) so the report
+# can state "30 days" vs "90 days" without asserting which is correct.
 _CONFLICT_RULES: list[tuple[str, str, str]] = [
-    ("notice", r"(\d{1,3})\s*[-\s]\s*(?:calendar\s+)?days?['’]?\s*(?:(?:prior|written)\s+)?notice", "notice period"),
-    ("payment", r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,3})\s*days?", "payment period"),
-    ("duration", r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,3})\s*(?:months?|years?)", "duration"),
-    ("renew", r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,3})\s*(?:month|year)s?", "renewal"),
+    (
+        "notice",
+        r"(\d{1,3})\s*[-\s]\s*(?:calendar\s+)?(days?|weeks?|months?)['’]?\s*"
+        r"(?:(?:prior|written)\s+)?notice",
+        "notice period",
+    ),
+    (
+        "payment",
+        r"pay(?:ment)?\s+(?:within|in)\s+(\d{1,3})\s*(days?|weeks?|months?)",
+        "payment period",
+    ),
+    (
+        "duration",
+        r"(?:term|agreement|contract)\s+lasts?\s+(\d{1,3})\s*(months?|years?)",
+        "duration",
+    ),
+    (
+        "renew",
+        r"renew(?:al)?\s+(?:period\s+of\s+|after\s+|every\s+)?(\d{1,3})\s*(months?|years?)",
+        "renewal",
+    ),
 ]
 
 
@@ -183,6 +200,10 @@ def _relationship_of(
     unrelated. Order-independent: the pair is always emitted
     ``source=min(id), target=max(id)`` so the output is canonical.
     """
+    # Two uncategorised sections share nothing but the fallback label; treating
+    # them as related would fill the report with noise.
+    if a.category == b.category == "Other":
+        return None
     if a.category == b.category:
         return (RISK, "Both clauses are in the same canonical section category.")
     if b.category in CATEGORY_EDGES.get(a.category, set()):
@@ -275,37 +296,49 @@ def _detect_conflict(
     va = _conflict_values(a)
     vb = _conflict_values(b)
     for key in va.keys() & vb.keys():
-        if va[key] != vb[key]:
+        display_a, canonical_a = va[key]
+        display_b, canonical_b = vb[key]
+        if canonical_a != canonical_b:
             return PotentialInconsistency(
                 source_clause_id=min(a.clause_id, b.clause_id),
                 target_clause_id=max(a.clause_id, b.clause_id),
                 kind=key,
-                value_a=va[key],
-                value_b=vb[key],
+                value_a=display_a,
+                value_b=display_b,
                 explanation=(
                     f"Two sections specify different {key} values "
-                    f"({va[key]} vs {vb[key]})."
+                    f"({display_a} vs {display_b})."
                 ),
             )
     return None
 
 
-def _conflict_values(clause: ExtractedClause) -> dict[str, str]:
-    """Extract the first deterministic (keyword, value) pair per rule set."""
+def _canonical_value(number: str, unit: str) -> str:
+    """Canonical comparable form: 12 months == 1 year, but 30 days != 30 months."""
+    count = int(number)
+    normalised = unit.lower().rstrip("s")
+    if normalised == "year":
+        return f"months:{count * 12}"
+    if normalised == "month":
+        return f"months:{count}"
+    return f"{normalised}:{count}"
+
+
+def _conflict_values(clause: ExtractedClause) -> dict[str, tuple[str, str]]:
+    """Extract the first deterministic (label -> (display, canonical)) value."""
     import re
 
     text = clause.text or ""
     lower = text.lower()
-    found: dict[str, str] = {}
+    found: dict[str, tuple[str, str]] = {}
     for keyword, pattern, label in _CONFLICT_RULES:
-        if keyword in lower:
-            m = re.search(pattern, text, flags=re.IGNORECASE)
-            if m:
-                n = m.group(1)
-                unit = "days"
-                if "month" in label or "renew" in label or "duration" in label:
-                    unit = "months"
-                found[label] = f"{n} {unit}"
+        if keyword not in lower:
+            continue
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        number, unit = match.group(1), match.group(2)
+        found[label] = (f"{int(number)} {unit.lower()}", _canonical_value(number, unit))
     return found
 
 
@@ -364,13 +397,13 @@ def to_out(report: CrossClauseReport) -> "CrossClauseReportOut":
         llm_calls=report.llm_calls,
         feedback=(
             report.feedback
-            or (  # §14: found-path feedback stays deterministic, ID-only,
-                  # canonical-label-only — never clause text. Zero LLM calls.
-                  f"{len(report.relationships)} cross-clause relationship(s) and "
-                  f"{len(report.inconsistencies)} potential inconsistency(ies) "
-                  f"identified across {len(report.feedback) or 0} reviewable pairs."
-                  if report.relationships or report.inconsistencies
-                  else "No cross-clause relationships or inconsistencies found."
-              )
+            or (
+                f"{len(report.relationships)} cross-clause relationship(s) and "
+                f"{len(report.inconsistencies)} potential inconsistency(ies) "
+                f"identified across {len(report.relationships) + len(report.inconsistencies)} "
+                f"reviewable pair(s)."
+                if report.relationships or report.inconsistencies
+                else "No cross-clause relationships or inconsistencies found."
+            )
         ),
     )

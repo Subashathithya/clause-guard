@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef } from 'react';
+import { useI18n } from '../../i18n/I18nProvider';
 
 /* ================================================================ Modal */
 export function Modal({
@@ -18,6 +19,7 @@ export function Modal({
   size?: 'sm' | 'md' | 'lg';
   labelledBy?: string;
 }) {
+  const { t } = useI18n();
   const id = useId();
   const titleId = labelledBy || `${id}-title`;
   const ref = useRef<HTMLDivElement>(null);
@@ -26,6 +28,7 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
     returnFocusRef.current = prev;
     document.body.style.overflow = 'hidden';
 
@@ -74,7 +77,7 @@ export function Modal({
 
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
       returnFocusRef.current?.focus?.();
       returnFocusRef.current = null;
     };
@@ -98,8 +101,8 @@ export function Modal({
         style={size === 'lg' ? { maxWidth: 820 } : size === 'sm' ? { maxWidth: 400 } : undefined}
       >
         <div className="modal-head">
-          <h3 id={titleId}>{title}</h3>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close dialog">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t('common.closeDialog')}>
             ✕
           </button>
         </div>
@@ -157,27 +160,44 @@ export function Popover({
 
   const toggle = () => setOpen((v) => !v);
 
+  let triggerNode: React.ReactNode;
+  if (triggerIsInteractive) {
+    const interactive = trigger as React.ReactElement<{
+      onClick?: React.MouseEventHandler;
+      'aria-haspopup'?: string;
+      'aria-expanded'?: boolean;
+    }>;
+    triggerNode = React.cloneElement(interactive, {
+      onClick: (e: React.MouseEvent) => {
+        interactive.props.onClick?.(e);
+        if (!e.defaultPrevented) toggle();
+      },
+      'aria-haspopup': 'menu',
+      'aria-expanded': open,
+    });
+  } else {
+    triggerNode = (
+      <span
+        role="button"
+        tabIndex={0}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+      >
+        {trigger}
+      </span>
+    );
+  }
+
   return (
     <div className="popover" ref={ref}>
-      {triggerIsInteractive ? (
-        <span onClick={toggle}>{trigger}</span>
-      ) : (
-        <span
-          role="button"
-          tabIndex={0}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          onClick={toggle}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              toggle();
-            }
-          }}
-        >
-          {trigger}
-        </span>
-      )}
+      {triggerNode}
       {open && (
         <div className="popover-panel" role="menu" style={align === 'left' ? { right: 'auto', left: 0 } : undefined}>
           {typeof children === 'function' ? children(() => setOpen(false)) : children}
@@ -214,6 +234,7 @@ const ToastContext = createContext<ToastApi | null>(null);
 let toastSeq = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const [toasts, setToasts] = React.useState<ToastItem[]>([]);
 
   const remove = useCallback((id: number) => {
@@ -233,18 +254,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ push }}>
       {children}
       <div className="toast-region" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.tone}`}>
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast toast-${toast.tone}`}>
             <span aria-hidden="true">
-              {t.tone === 'success' ? '✓' : t.tone === 'error' ? '✕' : 'ℹ'}
+              {toast.tone === 'success' ? '✓' : toast.tone === 'error' ? '✕' : 'ℹ'}
             </span>
-            <span>{t.message}</span>
+            <span>{toast.message}</span>
             <button
               type="button"
               className="icon-btn"
               style={{ color: '#cbd5e1' }}
-              onClick={() => remove(t.id)}
-              aria-label="Dismiss notification"
+              onClick={() => remove(toast.id)}
+              aria-label={t('common.dismiss')}
             >
               ✕
             </button>

@@ -29,7 +29,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "mobile:build": "npm run build && npx cap sync android",
+    "mobile:build": "node scripts/build_mobile.js && npx cap sync android",
     "mobile:open": "npx cap open android"
   },
   "eslintConfig": {

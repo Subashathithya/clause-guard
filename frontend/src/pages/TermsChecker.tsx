@@ -1,21 +1,22 @@
 import { FileText } from 'lucide-react';
 import { AnalyzeExperience } from '../components/analyze/AnalyzeExperience';
 import { PageHeader } from '../components/ui/data';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function TermsChecker() {
+  const { t } = useI18n();
   return (
     <div>
       <PageHeader
-        title="T&C Checker"
-        lead="Paste any Terms & Conditions (or upload a document) and get a plain-English rundown of what you’re agreeing to — including the clauses that often go unnoticed."
+        title={t('terms.title')}
+        lead={t('terms.lead')}
       />
 
       <div className="card card-pad mb-4 tc-note">
         <div className="row" style={{ gap: 10 }}>
           <FileText size={20} className="faint" aria-hidden="true" />
           <p className="text-sm muted mb-0">
-            Great candidates: app &amp; website terms, subscription plans, gym or course policies,
-            warranty terms. The same careful, plain-English reading applies to all of them.
+            {t('terms.examples')}
           </p>
         </div>
       </div>

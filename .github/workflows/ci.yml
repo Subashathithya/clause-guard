@@ -24,7 +24,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Syntax check
         run: |
-          python -m py_compile app/__init__.py app/main.py app/constants.py app/settings.py app/schemas.py app/llm.py app/db.py app/database.py app/uploads.py app/core/__init__.py app/core/security.py app/models/__init__.py app/models/user.py app/models/contract.py app/models/clause.py app/models/chat_message.py app/models/usage_counter.py app/services/__init__.py app/services/contract_service.py app/stores/__init__.py app/stores/store_protocol.py app/stores/chroma_store.py app/agents/__init__.py app/agents/extract_agent.py app/agents/compare_agent.py app/agents/ranker_agent.py app/agents/negotiator_agent.py app/agents/orchestrator.py app/api/__init__.py app/api/routes/__init__.py app/api/routes/health.py app/api/routes/auth.py app/api/routes/analysis.py app/api/routes/chat.py app/api/routes/compare.py app/api/routes/contracts.py app/api/routes/knowledge.py app/api/routes/history.py app/api/routes/misc.py evaluate_system.py experiments/run_experiments.py scripts/migrate_store.py scripts/seed_demo.py scripts/clean_workspace.py
+          python -m py_compile app/__init__.py app/main.py app/constants.py app/settings.py app/schemas.py app/llm.py app/db.py app/database.py app/uploads.py app/core/__init__.py app/core/security.py app/core/errors.py app/core/ratelimit.py app/models/__init__.py app/models/user.py app/models/contract.py app/models/clause.py app/models/chat_message.py app/models/usage_counter.py app/models/contract_date.py app/models/bookmark.py app/models/checklist_item.py app/services/__init__.py app/services/contract_service.py app/services/key_dates.py app/services/checklist.py app/services/version_comparison.py app/stores/__init__.py app/stores/store_protocol.py app/stores/chroma_store.py app/agents/__init__.py app/agents/extract_agent.py app/agents/compare_agent.py app/agents/ranker_agent.py app/agents/negotiator_agent.py app/agents/orchestrator.py app/cross_clause.py app/evidence.py app/api/__init__.py app/api/routes/__init__.py app/api/routes/health.py app/api/routes/auth.py app/api/routes/analysis.py app/api/routes/chat.py app/api/routes/compare.py app/api/routes/contracts.py app/api/routes/knowledge.py app/api/routes/history.py app/api/routes/misc.py app/api/routes/tracking.py evaluate_system.py experiments/run_experiments.py scripts/migrate_store.py scripts/seed_demo.py scripts/clean_workspace.py
       - name: Unit tests
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -47,11 +47,16 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Install
         run: npm ci
       - name: Build
         run: npm run build
       - name: Type check
         run: npx tsc --noEmit
+      - name: Translation audit
+        run: python scripts/check_i18n_keys.py
       - name: Test
         run: npm test -- --watchAll=false

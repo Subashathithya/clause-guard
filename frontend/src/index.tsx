@@ -10,18 +10,25 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './auth/context';
 import { ToastProvider } from './components/ui/overlays';
+import { I18nProvider } from './i18n/I18nProvider';
+import { registerServiceWorker } from './pwa/serviceWorker';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </AuthProvider>
+      </I18nProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
 
 reportWebVitals();
+
+// Offline shell + install support (web build only).
+registerServiceWorker();

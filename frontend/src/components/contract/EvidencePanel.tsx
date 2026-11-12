@@ -1,32 +1,31 @@
 import { BookOpen } from 'lucide-react';
 import type { Clause } from '../../types';
 import { Tag } from '../ui/primitives';
+import { useI18n } from '../../i18n/I18nProvider';
 
 /** Evidence panel: shows the reference the analysis compared a clause against.
  *  Presented as plain-language "what we compared this with" — no technical jargon. */
 export function EvidencePanel({ clause }: { clause: Clause }) {
+  const { t } = useI18n();
   const comparison = clause.comparison;
   const refText = comparison?.reference_clause;
   const sim = comparison?.similarity ?? 0;
   const matchLabel =
     comparison?.standard_match === 'match'
-      ? 'Closely aligned with common practice'
+      ? t('clause.evidenceAligned')
       : comparison?.standard_match === 'worse'
-        ? 'Differs from common practice'
-        : 'No strong reference';
+        ? t('clause.differsFromPractice')
+        : t('clause.noStrongReference');
 
   if (!refText) {
     return (
       <div className="evidence-panel">
         <div className="ep-head">
           <BookOpen size={16} aria-hidden="true" />
-          <strong>Reference check</strong>
-          <span className="ml-auto tag">No comparable reference found</span>
+          <strong>{t('clause.referenceCheck')}</strong>
+          <span className="ml-auto tag">{t('clause.noReference')}</span>
         </div>
-        <p className="text-sm muted mt-2 mb-0">
-          We couldn’t find a common-practice reference that closely matches this wording, so the
-          explanation above is based on the clause itself.
-        </p>
+        <p className="text-sm muted mt-2 mb-0">{t('clause.noReferenceBody')}</p>
       </div>
     );
   }
@@ -35,15 +34,15 @@ export function EvidencePanel({ clause }: { clause: Clause }) {
     <div className="evidence-panel">
       <div className="ep-head">
         <BookOpen size={16} aria-hidden="true" />
-        <strong>Reference check</strong>
+        <strong>{t('clause.referenceCheck')}</strong>
         <span className="ml-auto tag">
-          {Math.round(sim * 100)}% close to common practice
+          {t('clause.closeToPractice', { percent: Math.round(sim * 100) })}
         </span>
       </div>
       <p className="ep-label">{matchLabel}</p>
       {comparison.reference_category && (
         <div className="row" style={{ gap: 8 }}>
-          <Tag>Reference section: {comparison.reference_category}</Tag>
+          <Tag>{t('clause.referenceSection', { category: comparison.reference_category })}</Tag>
         </div>
       )}
       <blockquote className="ep-quote">{refText}</blockquote>

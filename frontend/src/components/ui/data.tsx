@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CloudUpload, FileText, Lock } from 'lucide-react';
 import { Alert } from './primitives';
+import { useI18n } from '../../i18n/I18nProvider';
 
 /* ================================================================ Card */
 export function Card({
@@ -24,7 +25,7 @@ export function Card({
       {(title || subtitle || actions) && (
         <div className="card-header">
           <div>
-            {title && <h3 className="card-title">{title}</h3>}
+            {title && <h2 className="card-title">{title}</h2>}
             {subtitle && <p className="card-subtitle mt-2">{subtitle}</p>}
           </div>
           {actions && <div>{actions}</div>}
@@ -37,8 +38,9 @@ export function Card({
 
 /* ================================================================ Breadcrumbs */
 export function Breadcrumbs({ items }: { items: { label: string; to?: string }[] }) {
+  const { t } = useI18n();
   return (
-    <nav aria-label="Breadcrumb" className="crumbs">
+    <nav aria-label={t('common.breadcrumb')} className="crumbs">
       {items.map((it, i) => {
         const last = i === items.length - 1;
         return (
@@ -85,20 +87,46 @@ export function Tabs({
   tabs,
   value,
   onChange,
+  label = 'Page sections',
 }: {
   tabs: { id: string; label: React.ReactNode }[];
   value: string;
   onChange: (id: string) => void;
+  label?: string;
 }) {
+  const baseId = useId();
+
+  const move = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const list = Array.from(
+      e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') || []
+    );
+    if (list.length === 0) return;
+    let next = index;
+    if (e.key === 'ArrowRight') next = (index + 1) % list.length;
+    if (e.key === 'ArrowLeft') next = (index - 1 + list.length) % list.length;
+    if (e.key === 'Home') next = 0;
+    if (e.key === 'End') next = list.length - 1;
+    list[next]?.focus();
+    const tab = tabs[next];
+    if (tab) onChange(tab.id);
+  };
+
   return (
-    <div className="tabs" role="tablist" aria-label="Page sections">
-      {tabs.map((t) => (
+    <div className="tabs" role="tablist" aria-label={label}>
+      {tabs.map((t, index) => (
         <button
           key={t.id}
+          id={`${baseId}-${t.id}-tab`}
+          type="button"
           role="tab"
           aria-selected={value === t.id}
+          tabIndex={value === t.id ? 0 : -1}
           className={['tab', value === t.id ? 'tab-active' : ''].filter(Boolean).join(' ')}
           onClick={() => onChange(t.id)}
+          onKeyDown={(e) => move(e, index)}
         >
           {t.label}
         </button>
@@ -138,14 +166,15 @@ export function ErrorState({
   onRetry?: () => void;
   icon?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="error-state" role="alert">
       <div className="err-icon" aria-hidden="true">{icon || <span aria-hidden="true">!</span>}</div>
-      <h4>Something went wrong</h4>
+      <h4>{t('common.somethingWentWrong')}</h4>
       <p className="muted">{message}</p>
       {onRetry && (
         <button className="btn btn-secondary" onClick={onRetry}>
-          Try again
+          {t('common.tryAgain')}
         </button>
       )}
     </div>
@@ -173,18 +202,19 @@ export function FileUploader({
   clearError?: () => void;
   fileLabel?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const validate = (file: File): string | null => {
     if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-      return `This file is too large. The maximum is ${MAX_UPLOAD_MB} MB.`;
+      return t('analyze.fileTooLarge', { max: MAX_UPLOAD_MB });
     }
     const extOk = SUPPORTED_UPLOAD_EXT.some((e) => file.name.toLowerCase().endsWith(e));
     const mimeOk = SUPPORTED_UPLOAD_MIME.includes(file.type);
     if (!extOk && !mimeOk) {
-      return `That file type isn't supported. Please upload a PDF, TXT, Markdown or DOCX file.`;
+      return t('analyze.unsupportedFile');
     }
     return null;
   };
@@ -219,7 +249,7 @@ export function FileUploader({
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
-        aria-label="Upload a contract document"
+        aria-label={t('analyze.uploadDocument')}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -229,7 +259,7 @@ export function FileUploader({
       >
         <CloudUpload size={34} aria-hidden="true" style={{ color: 'var(--brand-500)' }} />
         <div className="mt-3">
-          <span className="dropzone-label">Drag &amp; drop your contract, or click to browse</span>
+          <span className="dropzone-label">{t('analyze.dragDrop')}</span>
         </div>
         <p className="dropzone-hint">PDF, TXT, Markdown or DOCX · up to {MAX_UPLOAD_MB} MB</p>
         {fileLabel}
@@ -246,7 +276,7 @@ export function FileUploader({
       </div>
       {(error || externalError) && (
         <div className="mt-3">
-          <Alert tone="danger" title="Couldn't use that file">
+          <Alert tone="danger" title={t('analyze.couldNotUseFile')}>
             {error || externalError}
           </Alert>
         </div>
@@ -256,9 +286,10 @@ export function FileUploader({
 }
 
 export function SecureNote() {
+  const { t } = useI18n();
   return (
     <p className="text-sm faint" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <Lock size={14} aria-hidden="true" /> Your document is only used for this analysis and stays in your workspace.
+      <Lock size={14} aria-hidden="true" /> {t('analyze.documentPrivacy')}
     </p>
   );
 }

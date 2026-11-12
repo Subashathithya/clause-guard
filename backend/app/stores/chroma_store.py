@@ -59,6 +59,20 @@ class ChromaStore:
     # created with the cosine space so the 0..1 similarity math holds.
     EMBEDDING_SPACE = "cosine"
 
+    @staticmethod
+    def distance_to_similarity(distance: float) -> float:
+        """Map a Chroma ``cosine`` distance onto a 0..1 similarity.
+
+        Chroma 0.4.x expresses cosine distance as the squared L2 distance
+        between the (normalised) embedding vectors, i.e. ``2 - 2*cos``. The
+        plain ``1 - distance`` mapping therefore halves every score and clamps
+        most real clauses to 0.0, which collapses the ranker's 0.70/0.85 bands
+        and makes every comparison look maximally risky. Calibrated in
+        ``tests/test_engine_correctness.py::test_cosine_distance_maps_to_real_similarity``.
+        """
+        value = 1.0 - float(distance) / 2.0
+        return round(max(0.0, min(1.0, value)), 3)
+
     def _collection(self, name: str):
         client = self.get_chroma()
         try:
@@ -305,7 +319,7 @@ class ChromaStore:
                     "document_name": meta.get("document_name", "Unknown"),
                     "clause_id": meta.get("clause_id", ""),
                     "category": meta.get("category", ""),
-                    "similarity": round(max(0.0, 1.0 - float(dist)), 3),
+                    "similarity": self.distance_to_similarity(dist),
                 }
             )
         return out
@@ -361,7 +375,7 @@ class ChromaStore:
             return {"standard_match": "unknown", "similarity": 0.0, "reference_clause": None,
                     "reference_category": None, "notes": "No comparable reference found."}
 
-        similarity = round(max(0.0, 1.0 - float(dists[0])), 3)
+        similarity = self.distance_to_similarity(dists[0])
         match = "match" if similarity >= 0.65 else "worse"
         return {
             "standard_match": match,

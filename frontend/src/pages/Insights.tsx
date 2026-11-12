@@ -7,7 +7,7 @@ import type { AnalysisResult } from '../types';
 import { Card, EmptyState, ErrorState, PageHeader } from '../components/ui/data';
 import { SkeletonLines } from '../components/ui/primitives';
 import { ActivityArea, CategoryBars, ChartCard, RiskDonut, RiskStackedBars } from '../components/charts/Charts';
-import { categoryLabel } from '../lib/format';
+import { useI18n } from '../i18n/I18nProvider';
 
 function useInsightsData() {
   return useAsync(async () => {
@@ -39,6 +39,7 @@ function Stat({ icon, label, value, hint }: { icon: ReactNode; label: string; va
 }
 
 export default function Insights() {
+  const { t, categoryLabel } = useI18n();
   const { value, loading, error, retry } = useInsightsData();
 
   const categoryFreq = useMemo(() => {
@@ -50,7 +51,7 @@ export default function Insights() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 7)
       .map(([cat, n]) => ({ name: categoryLabel(cat), value: n }));
-  }, [value]);
+  }, [value, categoryLabel]);
 
   const activity = useMemo(() => {
     const map: Record<string, { label: string; count: number }> = {};
@@ -90,7 +91,7 @@ export default function Insights() {
   if (error && !value) {
     return (
       <div>
-        <PageHeader title="Insights" />
+        <PageHeader title={t('insights.title')} />
         <ErrorState message={error} onRetry={retry} />
       </div>
     );
@@ -105,64 +106,64 @@ export default function Insights() {
   return (
     <div>
       <PageHeader
-        title="Insights"
-        lead="An analytics view across the documents in your workspace — computed only from the analyses you’ve run."
+        title={t('insights.title')}
+        lead={t('insights.lead')}
       />
 
       {contracts.length === 0 ? (
         <Card>
           <EmptyState
             icon={<Lightbulb size={26} />}
-            title="Nothing to show yet"
-            description="Once you analyse a few contracts, this page will fill with risk breakdowns, clause categories and trends from your real data."
+            title={t('insights.nothingYet')}
+            description={t('insights.emptyBody')}
           />
         </Card>
       ) : (
         <div className="stack">
           <div className="stat-strip">
-            <Stat icon={<FolderOpen size={18} />} label="Documents analysed" value={stats.total_contracts} hint="in your workspace" />
-            <Stat icon={<BarChart3 size={18} />} label="Sections understood" value={stats.total_clauses} hint="across all documents" />
+            <Stat icon={<FolderOpen size={18} />} label={t('insights.documentsAnalyzed')} value={stats.total_contracts} hint={t('dashboard.inWorkspace')} />
+            <Stat icon={<BarChart3 size={18} />} label={t('insights.sectionsUnderstood')} value={stats.total_clauses} hint={t('insights.acrossAll')} />
             <Stat
               icon={<ShieldCheck size={18} />}
-              label="Sections flagged"
+              label={t('insights.needsCloserLook')}
               value={
                 <>
                   <span style={{ color: 'var(--danger-text)' }}>{stats.red_clauses}</span>
-                  <span className="faint" style={{ fontSize: '0.62em' }}> high · </span>
+                  <span className="faint" style={{ fontSize: '0.62em' }}> {t('workspace.levelLow')} · </span>
                   <span style={{ color: 'var(--warning-text)' }}>{stats.yellow_clauses}</span>
-                  <span className="faint" style={{ fontSize: '0.62em' }}> moderate</span>
+                  <span className="faint" style={{ fontSize: '0.62em' }}> {t('workspace.levelMid')}</span>
                 </>
               }
-              hint="needs a closer look"
+              hint={t('insights.flaggedTotal')}
             />
             <Stat
               icon={<Gauge size={18} />}
-              label="Clean clauses"
+              label={t('insights.looksFine')}
               value={`${safetyPct}%`}
-              hint={`${stats.green_clauses} low-risk sections`}
+              hint={t('insights.sectionsRoutine', { count: stats.green_clauses })}
             />
           </div>
 
           <div className="chart-grid">
-            <ChartCard title="Risk composition" subtitle="Every clause in the workspace, grouped by severity">
+            <ChartCard title={t('insights.breakdownTitle')} subtitle={t('insights.breakdownSub')}>
               <RiskDonut red={stats.red_clauses} yellow={stats.yellow_clauses} green={stats.green_clauses} />
             </ChartCard>
-            <ChartCard title="Analysis activity" subtitle="Contracts analysed per month">
+            <ChartCard title={t('insights.activityTitle')} subtitle={t('insights.activitySub')}>
               <ActivityArea data={activity} />
             </ChartCard>
           </div>
 
           <div className="chart-grid">
-            <ChartCard title="Sections by topic" subtitle="Which kinds of clauses appear most often">
+            <ChartCard title={t('insights.topicsTitle')} subtitle={t('insights.topicsSub')}>
               <CategoryBars data={categoryFreq} />
             </ChartCard>
-            <ChartCard title="Risk mix per contract" subtitle="Six most recent documents, stacked by severity">
+            <ChartCard title={t('insights.mixTitle')} subtitle={t('insights.mixSub')}>
               <RiskStackedBars data={perContract} />
             </ChartCard>
           </div>
 
           {attentionRanking.length > 0 && (
-            <Card title="Where attention adds up" subtitle="Documents with the most sections to review">
+            <Card title={t('insights.whereAttentionTitle')} subtitle={t('insights.whereAttentionSub')}>
               <div className="rank-list">
                 {attentionRanking.map(({ c, attention }, i) => {
                   const max = attentionRanking[0].attention || 1;
@@ -184,11 +185,10 @@ export default function Insights() {
             </Card>
           )}
 
-          <Card title="How this is put together" subtitle="">
+          <Card title={t('insights.howBuiltTitle')} subtitle="">
             <p className="text-sm muted mb-0" style={{ display: 'flex', gap: 8 }}>
               <FolderOpen size={15} className="faint" style={{ flex: 'none', marginTop: 3 }} />
-              Everything here comes straight from the analyses in your workspace. When you remove a
-              contract, the numbers and charts update automatically.
+              {t('insights.howBuiltBody')}
             </p>
           </Card>
         </div>

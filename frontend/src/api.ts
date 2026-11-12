@@ -2,15 +2,21 @@ import { Capacitor } from '@capacitor/core';
 import type {
   AnalysisResult,
   AuthResponse,
+  Bookmark,
   ChatMessage,
   ChatResponse,
+  ChecklistItem,
   CompareResult,
   Contract,
+  ContractDate,
+  ContractDateInput,
   DriftResult,
   FairClausesResponse,
+  Reminder,
   Stats,
   User,
 } from './types';
+import { translateNow } from './i18n';
 
 /**
  * Native builds talk to the deployed FastAPI backend (HTTPS is required on a
@@ -73,23 +79,52 @@ function headers(withJson = true, extra?: Record<string, string>): Record<string
   return h;
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { headers: headers(false) });
+/** Friendly text for the failures a non-technical person can actually hit. */
+function friendlyError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  if (/failed to fetch|networkerror|load failed/i.test(raw)) {
+    return translateNow('common.networkError');
+  }
+  if (/timeout/i.test(raw)) {
+    return translateNow('common.timeoutError');
+  }
+  return raw;
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, init);
+  } catch (err) {
+    // A dropped connection is the most common failure on a phone; it should
+    // never look like a server error.
+    throw new ApiError(0, friendlyError(err));
+  }
   return parse<T>(res);
 }
 
+async function get<T>(path: string): Promise<T> {
+  return request<T>(path, { headers: headers(false) });
+}
+
 async function post<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  return request<T>(path, {
     method: 'POST',
     headers: headers(true),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  return parse<T>(res);
 }
 
 async function del<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { method: 'DELETE', headers: headers(false) });
-  return parse<T>(res);
+  return request<T>(path, { method: 'DELETE', headers: headers(false) });
+}
+
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PATCH',
+    headers: headers(true),
+    body: JSON.stringify(body),
+  });
 }
 
 export const api = {
@@ -138,6 +173,62 @@ export const api = {
   },
   async stats(): Promise<Stats> {
     return get<Stats>('/stats');
+  },
+
+  // ------------------------------------------------ tracking (Phase 4)
+  async contractDates(id: string): Promise<ContractDate[]> {
+    const data = await get<{ dates: ContractDate[] }>(`/contracts/${id}/dates`);
+    return data.dates || [];
+  },
+  async addContractDate(id: string, input: ContractDateInput): Promise<ContractDate> {
+    return post<ContractDate>(`/contracts/${id}/dates`, input);
+  },
+  async updateContractDate(
+    id: string,
+    dateId: string,
+    input: Partial<ContractDateInput>
+  ): Promise<ContractDate> {
+    return patch<ContractDate>(`/contracts/${id}/dates/${dateId}`, input);
+  },
+  async deleteContractDate(id: string, dateId: string): Promise<void> {
+    await del<{ status: string }>(`/contracts/${id}/dates/${dateId}`);
+  },
+  async reminders(days = 30): Promise<Reminder[]> {
+    const data = await get<{ reminders: Reminder[] }>(`/reminders?days=${days}`);
+    return data.reminders || [];
+  },
+  async bookmarks(id: string): Promise<Bookmark[]> {
+    const data = await get<{ bookmarks: Bookmark[] }>(`/contracts/${id}/bookmarks`);
+    return data.bookmarks || [];
+  },
+  async addBookmark(id: string, clauseIndex: string, note = ''): Promise<Bookmark> {
+    return post<Bookmark>(`/contracts/${id}/bookmarks`, { clause_index: clauseIndex, note });
+  },
+  async deleteBookmark(id: string, bookmarkId: string): Promise<void> {
+    await del<{ status: string }>(`/contracts/${id}/bookmarks/${bookmarkId}`);
+  },
+  async checklist(id: string): Promise<ChecklistItem[]> {
+    const data = await get<{ items: ChecklistItem[] }>(`/contracts/${id}/checklist`);
+    return data.items || [];
+  },
+  async addChecklistItem(id: string, text: string, clauseIndex?: string | null): Promise<ChecklistItem> {
+    return post<ChecklistItem>(`/contracts/${id}/checklist`, {
+      text,
+      clause_index: clauseIndex ?? null,
+    });
+  },
+  async generateChecklist(id: string): Promise<{ added: number; items: ChecklistItem[] }> {
+    return post<{ added: number; items: ChecklistItem[] }>(`/contracts/${id}/checklist/generate`);
+  },
+  async updateChecklistItem(
+    id: string,
+    itemId: string,
+    input: { text?: string; done?: boolean }
+  ): Promise<ChecklistItem> {
+    return patch<ChecklistItem>(`/contracts/${id}/checklist/${itemId}`, input);
+  },
+  async deleteChecklistItem(id: string, itemId: string): Promise<void> {
+    await del<{ status: string }>(`/contracts/${id}/checklist/${itemId}`);
   },
 
   // ------------------------------------------------ chat / compare

@@ -13,6 +13,7 @@ from app.core.security import get_optional_user
 from app.database import get_db
 from app.models import User
 from app.services import contract_service
+from app.services import key_dates
 from app.settings import settings
 
 router = APIRouter()
@@ -47,15 +48,22 @@ async def get_contract(
             stored = vdb.get_analysis(document_id)
             if stored is not None:
                 stored.setdefault("user_id", None)
-                return stored
+                payload = contract_service.normalize_payload(stored)
+                payload["date_suggestions"] = key_dates.suggest_dates(
+                    payload.get("clauses") or []
+                )
+                return payload
         raise HTTPException(status_code=404, detail="Document not found")
     # Prefer the full-fidelity cached payload (chroma), else reconstruct from
     # the relational rows (covers a cleared vector store).
     stored = vdb.get_analysis(document_id)
     if stored is not None:
         stored.setdefault("user_id", contract.user_id)
-        return stored
-    return contract_service.build_payload(contract)
+        payload = contract_service.normalize_payload(stored, contract)
+    else:
+        payload = contract_service.build_payload(contract)
+    payload["date_suggestions"] = key_dates.suggest_dates(payload.get("clauses") or [])
+    return payload
 
 
 @router.delete("/contracts/{document_id}")

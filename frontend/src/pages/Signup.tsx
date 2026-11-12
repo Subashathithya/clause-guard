@@ -4,6 +4,7 @@ import { useAuth } from '../auth/context';
 import { useToast } from '../components/ui/overlays';
 import { Button, Field, Input, PasswordInput } from '../components/ui/primitives';
 import { AuthLayout } from './AuthLayout';
+import { useI18n } from '../i18n/I18nProvider';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -11,6 +12,7 @@ export default function Signup() {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useI18n();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,10 +24,10 @@ export default function Signup() {
 
   const validate = (): boolean => {
     const next: Record<string, string> = {};
-    if (!fullName.trim()) next.fullName = 'Please enter your name.';
-    if (!EMAIL_RE.test(email.trim())) next.email = 'Enter a valid email address.';
-    if (password.length < 8) next.password = 'Use at least 8 characters.';
-    if (confirm !== password) next.confirm = 'Passwords do not match.';
+    if (!fullName.trim()) next.fullName = t('auth.nameRequired');
+    if (!EMAIL_RE.test(email.trim())) next.email = t('auth.invalidEmail');
+    if (password.length < 8) next.password = t('auth.passwordTooShort');
+    if (confirm !== password) next.confirm = t('auth.passwordsDoNotMatch');
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -38,19 +40,19 @@ export default function Signup() {
     setSubmitting(true);
     try {
       await signup(email.trim(), password, fullName.trim());
-      toast.push('Account created — welcome to ClauseGuard!', 'success');
+      toast.push(t('auth.welcomeTitle'), 'success');
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
+      setFormError(err instanceof Error ? err.message : t('common.networkError'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <AuthLayout title="Create your free account" subtitle="Analyse up to 5 contracts a month, free forever.">
+    <AuthLayout title={t('auth.signupTitle')} subtitle={t('auth.signupLead')}>
       <form onSubmit={submit} noValidate>
-        <Field label="Full name" htmlFor="su-name" error={errors.fullName}>
+        <Field label={t('auth.fullName')} htmlFor="su-name" error={errors.fullName}>
           <Input
             id="su-name"
             autoComplete="name"
@@ -60,7 +62,7 @@ export default function Signup() {
             invalid={!!errors.fullName}
           />
         </Field>
-        <Field label="Email" htmlFor="su-email" error={errors.email}>
+        <Field label={t('auth.email')} htmlFor="su-email" error={errors.email}>
           <Input
             id="su-email"
             type="email"
@@ -72,25 +74,25 @@ export default function Signup() {
           />
         </Field>
         <Field
-          label="Password"
+          label={t('auth.password')}
           htmlFor="su-password"
-          helper="At least 8 characters."
+          helper={t('auth.passwordHint')}
           error={errors.password}
         >
           <PasswordInput
             id="su-password"
             autoComplete="new-password"
-            placeholder="Create a password"
+            placeholder={t('auth.createPassword')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             invalid={!!errors.password}
           />
         </Field>
-        <Field label="Confirm password" htmlFor="su-confirm" error={errors.confirm}>
+        <Field label={t('auth.confirmPassword')} htmlFor="su-confirm" error={errors.confirm}>
           <PasswordInput
             id="su-confirm"
             autoComplete="new-password"
-            placeholder="Repeat your password"
+            placeholder={t('auth.repeatPassword')}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             invalid={!!errors.confirm}
@@ -102,11 +104,11 @@ export default function Signup() {
           </div>
         )}
         <Button type="submit" block loading={submitting} disabled={submitting}>
-          {submitting ? 'Creating your account…' : 'Create account'}
+          {submitting ? t('auth.signingIn') : t('auth.createAccountButton')}
         </Button>
       </form>
       <p className="text-center text-sm muted mt-4" style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-        Already have an account? <Link to="/login">Sign in</Link>
+        {t('auth.haveAccount')} <Link to="/login">{t('nav.signIn')}</Link>
       </p>
     </AuthLayout>
   );

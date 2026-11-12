@@ -51,6 +51,48 @@ export interface AgentTraceItem {
   [key: string]: unknown;
 }
 
+export interface CrossClauseRelation {
+  source_clause_id: string;
+  target_clause_id: string;
+  relationship: string;
+  explanation: string;
+}
+
+export interface CrossClauseInconsistency {
+  source_clause_id: string;
+  target_clause_id: string;
+  kind: string;
+  value_a: string;
+  value_b: string;
+  explanation: string;
+}
+
+export interface CrossClauseReport {
+  relationships: CrossClauseRelation[];
+  inconsistencies: CrossClauseInconsistency[];
+  semantic_pairs_scanned: number;
+  llm_calls: number;
+  feedback: string;
+}
+
+export interface EvidenceClause {
+  text: boolean;
+  category: boolean;
+  risk_consistent: boolean;
+  reference_present: boolean;
+  reference_credible: boolean;
+  supported: boolean;
+  reference_backed: boolean;
+}
+
+export interface EvidenceReport {
+  total: number;
+  supported: number;
+  unsupported: number;
+  reference_backed: number;
+  by_clause: Record<string, EvidenceClause>;
+}
+
 export interface AnalysisResult {
   document_id?: string;
   document_name: string;
@@ -59,9 +101,13 @@ export interface AnalysisResult {
   total_clauses: number;
   risk_summary: RiskSummary;
   clauses: Clause[];
+  cross_clause?: CrossClauseReport;
+  evidence?: EvidenceReport;
   summary: AnalysisSummary;
   agent_trace?: AgentTraceItem[];
   status: string;
+  /** Explicit calendar dates found in the contract text (Phase 4). */
+  date_suggestions?: DateSuggestion[];
 }
 
 export interface Contract {
@@ -116,6 +162,41 @@ export interface CompareResult {
   narrative: string;
 }
 
+export type ChangeType = 'unchanged' | 'modified' | 'added' | 'removed' | 'ambiguous';
+
+export interface VersionChange {
+  clause_id_a: string;
+  clause_id_b: string;
+  category: string;
+  change_type: ChangeType;
+  previous_value: string;
+  current_value: string;
+  explanation: string;
+}
+
+export interface AttentionEvolution {
+  clause_id: string;
+  category: string;
+  previous_attention: string;
+  current_attention: string;
+  evolution: string;
+}
+
+export interface VersionComparison {
+  version_a: string;
+  version_b: string;
+  changes: VersionChange[];
+  attention_evolution: AttentionEvolution[];
+  clauses_a: number;
+  clauses_b: number;
+  candidate_pairs: number;
+  matched_pairs: number;
+  ambiguous_pairs: number;
+  llm_calls: number;
+  semantic_pairs_scanned: number;
+  feedback: string;
+}
+
 export interface DriftResult {
   status: string;
   old: { document_id: string; document_name: string; average_risk_score: number; overall_risk: string };
@@ -129,6 +210,8 @@ export interface DriftResult {
     delta: number | null;
     direction: string;
   }[];
+  /** Additive clause-level, version-to-version comparison from the backend. */
+  version_comparison?: VersionComparison | null;
 }
 
 export interface UserQuota {
@@ -171,3 +254,60 @@ export interface FairClausesResponse {
 }
 
 export type AttentionLevel = 'high' | 'moderate' | 'low' | 'unknown';
+
+/* ---------------------------------------------------------- Phase 4 tracking */
+export type DateKind = 'payment' | 'renewal' | 'notice' | 'termination' | 'other';
+
+/** A date found in the contract text — informational until the user adds it. */
+export interface DateSuggestion {
+  date: string;
+  label: string;
+  kind: DateKind;
+  clause_id?: string | null;
+  clause_index?: string | null;
+  context: string;
+}
+
+export interface ContractDate {
+  id: string;
+  contract_id: string;
+  label: string;
+  due_date: string;
+  kind: DateKind;
+  notes: string;
+  remind_days_before: number;
+  created_at: string;
+  days_until: number;
+  remind_on: string;
+  is_overdue: boolean;
+}
+
+export interface Reminder extends ContractDate {
+  contract_name: string;
+}
+
+export interface ContractDateInput {
+  label: string;
+  due_date: string;
+  kind?: DateKind;
+  notes?: string;
+  remind_days_before?: number;
+}
+
+export interface Bookmark {
+  id: string;
+  contract_id: string;
+  clause_index: string;
+  note: string;
+  created_at: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  contract_id: string;
+  clause_index?: string | null;
+  text: string;
+  done: boolean;
+  position: number;
+  created_at: string;
+}

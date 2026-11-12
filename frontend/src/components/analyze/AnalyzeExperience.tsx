@@ -4,18 +4,19 @@ import { ClipboardList, Eraser, FileUp } from 'lucide-react';
 import { api } from '../../api';
 import { useTicker } from '../../hooks';
 import type { AnalysisResult } from '../../types';
-import { Alert, Button } from '../ui/primitives';
-import { FileUploader, SecureNote } from '../ui/data';
+import { Alert, Button, Field, Input } from '../ui/primitives';
+import { FileUploader, SecureNote, Tabs } from '../ui/data';
 import { useToast } from '../ui/overlays';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const MIN_TEXT_CHARS = 50;
 
 const STAGES = [
-  { label: 'Reading your document', hint: 'Opening the text you provided.' },
-  { label: 'Identifying the important sections', hint: 'Finding renewals, fees, liability and the rest.' },
-  { label: 'Understanding each key clause', hint: 'Translating the wording into plain English.' },
-  { label: 'Checking related sections', hint: 'Connecting clauses that talk to each other.' },
-  { label: 'Preparing your summary', hint: 'Putting everything together for you.' },
+  { label: 'analyze.stage1Label', hint: 'analyze.stage1Hint' },
+  { label: 'analyze.stage2Label', hint: 'analyze.stage2Hint' },
+  { label: 'analyze.stage3Label', hint: 'analyze.stage3Hint' },
+  { label: 'analyze.stage4Label', hint: 'analyze.stage4Hint' },
+  { label: 'analyze.stage5Label', hint: 'analyze.stage5Hint' },
 ];
 
 export function AnalyzeExperience({
@@ -27,6 +28,7 @@ export function AnalyzeExperience({
 }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useI18n();
 
   const [source, setSource] = useState<'paste' | 'upload'>(initialSource);
   const [documentName, setDocumentName] = useState('');
@@ -50,12 +52,12 @@ export function AnalyzeExperience({
     setPipelineError('');
     if (useFile) {
       if (!file) {
-        setValidationError('Choose a file to analyse first.');
+        setValidationError(t('analyze.chooseFile'));
         return;
       }
     } else if (textBody.trim().length < MIN_TEXT_CHARS) {
       setValidationError(
-        `That's ${textBody.trim().length} characters — please provide at least ${MIN_TEXT_CHARS} characters of text.`
+        t('analyze.tooShort', { count: textBody.trim().length, min: MIN_TEXT_CHARS })
       );
       return;
     }
@@ -66,7 +68,7 @@ export function AnalyzeExperience({
     try {
       const result: AnalysisResult = useFile
         ? await api.upload(file as File, name || (file as File).name)
-        : await api.analyze(textBody, name || defaultName(mode));
+        : await api.analyze(textBody, name || defaultName(mode, t));
 
       if (!result.document_id) {
         setNoClauses(true);
@@ -76,10 +78,10 @@ export function AnalyzeExperience({
       navigate(`/contracts/${result.document_id}`);
     } catch (err) {
       setRunning(false);
-      const msg = err instanceof Error ? err.message : 'Analysis failed. Please try again.';
+      const msg = err instanceof Error ? err.message : t('analyze.failed');
       setPipelineError(msg);
       if (msg.includes('monthly') || msg.includes('quota')) {
-        toast.push('You’ve used your free analyses for this month.', 'info');
+        toast.push(t('analyze.quotaUsed'), 'info');
       }
     }
   };
@@ -100,35 +102,31 @@ export function AnalyzeExperience({
   return (
     <div className="analyze-screen">
       {running ? (
-        <RunningView stage={STAGES[stageIndex]} secs={elapsedSec} />
+        <RunningView stage={{ label: t(STAGES[stageIndex].label), hint: t(STAGES[stageIndex].hint) }} secs={elapsedSec} />
       ) : (
         <>
-          <div className="tabs" role="tablist" aria-label="How to add your document">
-            <button
-              role="tab"
-              aria-selected={source === 'paste'}
-              className={['tab', source === 'paste' ? 'tab-active' : ''].filter(Boolean).join(' ')}
-              onClick={() => setSource('paste')}
-            >
-              <ClipboardList size={15} /> Paste text
-            </button>
-            <button
-              role="tab"
-              aria-selected={source === 'upload'}
-              className={['tab', source === 'upload' ? 'tab-active' : ''].filter(Boolean).join(' ')}
-              onClick={() => setSource('upload')}
-            >
-              <FileUp size={15} /> Upload a file
-            </button>
-          </div>
-
-          <input
-            className="input mb-3"
-            placeholder={mode === 'terms' ? 'e.g., ShopNow Terms & Conditions' : 'e.g., Gym membership agreement'}
-            aria-label="Document name"
-            value={documentName}
-            onChange={(e) => setDocumentName(e.target.value)}
+          <Tabs
+            label={t('analyze.howToAdd')}
+            value={source}
+            onChange={(id) => setSource(id as 'paste' | 'upload')}
+            tabs={[
+              { id: 'paste', label: (<><ClipboardList size={15} /> {t('analyze.pasteText')}</>) },
+              { id: 'upload', label: (<><FileUp size={15} /> {t('analyze.uploadFile')}</>) },
+            ]}
           />
+
+          <Field label={t('analyze.documentName')} htmlFor="analyze-name" helper={t('analyze.documentNameHint')}>
+            <Input
+              id="analyze-name"
+              placeholder={
+                mode === 'terms'
+                  ? t('analyze.namePlaceholderTerms')
+                  : t('analyze.namePlaceholderContract')
+              }
+              value={documentName}
+              onChange={(e) => setDocumentName(e.target.value)}
+            />
+          </Field>
 
           {source === 'paste' ? (
             <div className="card card-pad">
@@ -137,31 +135,31 @@ export function AnalyzeExperience({
                 rows={12}
                 placeholder={
                   mode === 'terms'
-                    ? 'Paste the terms & conditions here…'
-                    : 'Paste the contract text here… (the whole document, or the sections you want checked)'
+                    ? t('analyze.pastePlaceholderTerms')
+                    : t('analyze.pastePlaceholderContract')
                 }
                 value={documentText}
                 onChange={(e) => {
                   setDocumentText(e.target.value);
                   if (validationError) setValidationError('');
                 }}
-                aria-label="Contract text"
+                aria-label={t('analyze.contractText')}
               />
               <div className="row-spread text-sm mt-2">
                 <span className="faint">
-                  {charCount.toLocaleString()} characters
+                  {t('contract.characters', { count: charCount.toLocaleString() })}
                   {trimmed && trimmed.length < MIN_TEXT_CHARS
-                    ? ` · need at least ${MIN_TEXT_CHARS}`
+                    ? t('analyze.needMore', { min: MIN_TEXT_CHARS })
                     : trimmed
-                      ? ' · ready'
+                      ? t('analyze.ready')
                       : ''}
                 </span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={reset} disabled={!documentText}>
-                  <Eraser size={14} /> Clear
+                  <Eraser size={14} /> {t('analyze.clear')}
                 </button>
               </div>
               <Button className="mt-4" size="lg" loading={running} onClick={onPaste} disabled={!trimmed}>
-                Analyze text
+                {t('analyze.analyzeText')}
               </Button>
             </div>
           ) : (
@@ -175,14 +173,14 @@ export function AnalyzeExperience({
                 fileLabel={
                   fileLabel ? (
                     <p className="text-sm mt-3 mb-0" style={{ fontWeight: 600 }}>
-                      Selected: {fileLabel}
+                      {t('analyze.selected', { name: fileLabel })}
                     </p>
                   ) : undefined
                 }
               />
               <div className="mt-4 row">
                 <Button size="lg" loading={running} onClick={onUpload} disabled={!file}>
-                  Analyze file
+                  {t('analyze.analyzeFile')}
                 </Button>
               </div>
             </div>
@@ -190,22 +188,20 @@ export function AnalyzeExperience({
 
           {validationError && (
             <div className="mt-3">
-              <Alert tone="danger" title="A little more text, please">{validationError}</Alert>
+              <Alert tone="danger" title={t('analyze.moreTextNeeded')}>{validationError}</Alert>
             </div>
           )}
           {pipelineError && (
             <div className="mt-3">
-              <Alert tone="danger" title="We couldn't finish that analysis">
-                {pipelineError}. It usually means the analysis service is busy — please try again in a
-                minute.
+              <Alert tone="danger" title={t('analyze.couldNotFinish')}>
+                {pipelineError}. {t('analyze.busyNote')}
               </Alert>
             </div>
           )}
           {noClauses && (
             <div className="mt-3">
-              <Alert tone="warning" title="No clear sections found">
-                We couldn’t identify readable clauses from this text. It may be a table, a scanned page,
-                or very short. Try pasting the sections as regular text and analysing again.
+              <Alert tone="warning" title={t('analyze.noSectionsFound')}>
+                {t('analyze.noClausesBody')}
               </Alert>
             </div>
           )}
@@ -219,30 +215,30 @@ export function AnalyzeExperience({
   );
 }
 
-function defaultName(mode: 'contract' | 'terms'): string {
-  return mode === 'terms' ? 'Terms & Conditions' : 'My Contract';
+function defaultName(mode: 'contract' | 'terms', t: (key: string) => string): string {
+  return mode === 'terms' ? t('analyze.defaultNameTerms') : t('analyze.defaultNameContract');
 }
 
 function RunningView({ stage, secs }: { stage: { label: string; hint: string }; secs: number }) {
+  const { t } = useI18n();
   return (
     <div className="analyze-running" role="status">
       <div className="ar-card card card-pad">
         <div className="ar-spinner" aria-hidden="true">
           <span className="spinner" />
         </div>
-        <h3>{stage.label}…</h3>
+        <h2>{stage.label}…</h2>
         <p className="muted">{stage.hint}</p>
         <div className="ar-bar" aria-hidden="true">
           <div className="ar-bar-fill" />
         </div>
         <p className="text-xs faint">
-          {secs < 60 ? `About ${secs}s so far` : `About ${Math.floor(secs / 60)}m ${secs % 60}s so far`} —
-          most documents take under a minute.
+          {secs < 60
+            ? t('analyze.elapsedShort', { secs })
+            : t('analyze.elapsedLong', { minutes: Math.floor(secs / 60), secs: secs % 60 })}{' '}
+          — {t('analyze.mostUnderMinute')}
         </p>
-        <p className="text-xs faint">
-          Your document is being read right now. Stay on this page and we’ll take you to the summary
-          when it’s ready.
-        </p>
+        <p className="text-xs faint">{t('analyze.runningNote')}</p>
       </div>
     </div>
   );

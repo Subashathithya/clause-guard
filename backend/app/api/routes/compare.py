@@ -61,7 +61,7 @@ async def compare_contracts(
             continue
         stored = vdb.get_analysis(doc_id)
         if stored:
-            analyses.append(stored)
+            analyses.append(contract_service.normalize_payload(stored))
     if len(analyses) < 2:
         raise HTTPException(status_code=404, detail="Not enough analysed documents found")
 
@@ -104,7 +104,9 @@ async def compare_contracts(
             temperature=0.3,
         )
     except Exception as exc:  # noqa: BLE001
-        narrative = f"(comparison narrative unavailable: {exc})"
+        # Keep the internal cause out of the response body.
+        logger.warning("Comparison narrative unavailable: %s", exc)
+        narrative = "(comparison narrative unavailable)"
 
     return {
         "status": "SUCCESS",
@@ -138,6 +140,8 @@ async def policy_drift(
     new = vdb.get_analysis(input_data.document_ids[1])
     if not old or not new:
         raise HTTPException(status_code=404, detail="Both documents must be analysed first")
+    old = contract_service.normalize_payload(old)
+    new = contract_service.normalize_payload(new)
 
     def cat_scores(a):
         out = {}

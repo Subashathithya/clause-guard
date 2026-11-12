@@ -3,16 +3,19 @@ import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 import { AuthProvider } from '../auth/context';
 import { ToastProvider } from '../components/ui/overlays';
+import { I18nProvider } from '../i18n/I18nProvider';
 
 function renderApp(initialPath = '/') {
   return render(
-    <ToastProvider>
-      <AuthProvider>
-        <MemoryRouter initialEntries={[initialPath]}>
-          <App />
-        </MemoryRouter>
-      </AuthProvider>
-    </ToastProvider>
+    <I18nProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[initialPath]}>
+            <App />
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>
+    </I18nProvider>
   );
 }
 

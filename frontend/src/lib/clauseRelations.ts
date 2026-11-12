@@ -1,4 +1,4 @@
-import type { Clause } from '../types';
+import type { AnalysisResult, Clause } from '../types';
 
 export interface ClauseLink {
   clauseId: string;
@@ -11,7 +11,7 @@ export interface Relationship {
   a: Clause;
   b: Clause;
   reason: string;
-  kind: 'category' | 'wording';
+  kind: 'category' | 'wording' | 'inconsistency';
 }
 
 /** Topic pairings between contract categories. Explanations stay on the level
@@ -104,4 +104,58 @@ export function deriveRelationships(clauses: Clause[]): Relationship[] {
   }
 
   return out.sort((x, y) => x.a.category.localeCompare(y.a.category));
+}
+
+function linkReason(a: Clause, b: Clause): string {
+  if (a.category === b.category) {
+    return `These two ${a.category} sections are related — a change to one can affect how the other applies.`;
+  }
+  return `${a.category} and ${b.category} sections often affect each other. Read both together before you rely on either one.`;
+}
+
+function inconsistencyReason(kind: string, valueA: string, valueB: string): string {
+  const label = kind || 'details';
+  if (valueA && valueB) {
+    return `These sections give different ${label} (${valueA} vs ${valueB}). One of them may need to change before you sign.`;
+  }
+  return `These sections seem to describe the same ${label} in different ways. Worth checking them side by side.`;
+}
+
+/** Prefer the analysis engine's grounded cross-section findings. When an older
+ *  saved analysis has none, fall back to the local wording/category derivation. */
+export function relationshipsFromAnalysis(analysis: AnalysisResult): Relationship[] {
+  const clauses = analysis.clauses || [];
+  const byId = new Map(clauses.map((c) => [c.clause_id, c]));
+  const found = new Map<string, Relationship>();
+  const cross = analysis.cross_clause;
+
+  const add = (a: Clause | undefined, b: Clause | undefined, reason: string, kind: Relationship['kind']) => {
+    if (!a || !b || a.clause_id === b.clause_id) return;
+    const id = [a.clause_id, b.clause_id].sort().join('#');
+    const existing = found.get(id);
+    // An inconsistency is more important than a generic "related" link.
+    if (existing && (existing.kind === 'inconsistency' || kind !== 'inconsistency')) return;
+    found.set(id, { id, a, b, reason, kind });
+  };
+
+  for (const issue of cross?.inconsistencies || []) {
+    add(
+      byId.get(issue.source_clause_id),
+      byId.get(issue.target_clause_id),
+      inconsistencyReason(issue.kind, issue.value_a, issue.value_b),
+      'inconsistency'
+    );
+  }
+  for (const relation of cross?.relationships || []) {
+    const a = byId.get(relation.source_clause_id);
+    const b = byId.get(relation.target_clause_id);
+    add(a, b, a && b ? linkReason(a, b) : '', 'category');
+  }
+
+  if (found.size === 0) return deriveRelationships(clauses);
+
+  const rank = (rel: Relationship) => (rel.kind === 'inconsistency' ? 0 : 1);
+  return Array.from(found.values()).sort(
+    (x, y) => rank(x) - rank(y) || x.a.category.localeCompare(y.a.category)
+  );
 }

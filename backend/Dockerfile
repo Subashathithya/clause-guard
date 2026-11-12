@@ -20,4 +20,6 @@ EXPOSE 8000
 
 # One worker: the demo uses a local SQLite file + persistent Chroma client, and
 # a single process avoids write-lock contention. Scale out with Postgres first.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# --no-server-header / --no-date-header keep the server banner out of the
+# responses; the app sets its own security headers.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-server-header --no-date-header --proxy-headers --forwarded-allow-ips=\"*\""]

@@ -1,29 +1,62 @@
 {
+  "id": "/",
+  "name": "ClauseGuard — Contract clarity in plain English",
   "short_name": "ClauseGuard",
-  "name": "ClauseGuard — Contract & Terms Analyzer",
-  "description": "Understand contracts and terms in plain English: clause breakdown, risk scoring, cross-clause insights, version comparison, and an AI assistant.",
+  "description": "Upload a contract and get a plain-English breakdown of the sections that deserve a closer look — renewals, fees, liability, termination and more.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "theme_color": "#4f46e5",
+  "background_color": "#f8fafc",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
       "src": "logo192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "logo512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon",
+      "purpose": "any"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "orientation": "portrait",
-  "theme_color": "#4f46e5",
-  "background_color": "#f6f7fb"
+  "shortcuts": [
+    {
+      "name": "Analyze a contract",
+      "short_name": "Analyze",
+      "url": "./analyze",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "My contracts",
+      "short_name": "Contracts",
+      "url": "./contracts",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Reminders",
+      "short_name": "Reminders",
+      "url": "./notifications",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
 }

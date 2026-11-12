@@ -7,10 +7,11 @@ working without a login screen.
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
+from app.core.ratelimit import enforce_rate_limit
 from app.core.security import create_access_token, get_current_user, hash_password, verify_password
 from app.database import get_db
 from app.models import User
@@ -41,7 +42,8 @@ class LoginInput(BaseModel):
 
 
 @router.post("/register", status_code=201)
-def register(payload: RegisterInput, db: Session = Depends(get_db)):
+def register(payload: RegisterInput, request: Request, db: Session = Depends(get_db)):
+    enforce_rate_limit(request, "register")
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -58,7 +60,8 @@ def register(payload: RegisterInput, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(payload: LoginInput, db: Session = Depends(get_db)):
+def login(payload: LoginInput, request: Request, db: Session = Depends(get_db)):
+    enforce_rate_limit(request, "login")
     user = db.query(User).filter(User.email == payload.email.strip().lower()).first()
     if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")

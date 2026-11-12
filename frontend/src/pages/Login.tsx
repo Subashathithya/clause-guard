@@ -4,6 +4,7 @@ import { useAuth } from '../auth/context';
 import { useToast } from '../components/ui/overlays';
 import { Button, Field, Input, PasswordInput } from '../components/ui/primitives';
 import { AuthLayout } from './AuthLayout';
+import { useI18n } from '../i18n/I18nProvider';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -12,6 +13,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,11 +31,11 @@ export default function Login() {
     setPasswordError('');
     let ok = true;
     if (!EMAIL_RE.test(email.trim())) {
-      setEmailError('Enter a valid email address.');
+      setEmailError(t('auth.invalidEmail'));
       ok = false;
     }
     if (!password) {
-      setPasswordError('Enter your password.');
+      setPasswordError(t('auth.passwordRequired'));
       ok = false;
     }
     if (!ok) return;
@@ -41,19 +43,19 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      toast.push(`Welcome back! Your free analyses are loaded.`, 'success');
+      toast.push(t('auth.welcomeTitle'), 'success');
       navigate(from, { replace: true });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Sign in failed. Please try again.');
+      setFormError(err instanceof Error ? err.message : t('common.networkError'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <AuthLayout title="Sign in to ClauseGuard" subtitle="Your contracts and explanations, all in one place.">
+    <AuthLayout title={t('auth.loginTitle')} subtitle={t('auth.loginLead')}>
       <form onSubmit={submit} noValidate>
-        <Field label="Email" htmlFor="login-email" error={emailError}>
+        <Field label={t('auth.email')} htmlFor="login-email" error={emailError}>
           <Input
             id="login-email"
             type="email"
@@ -64,11 +66,11 @@ export default function Login() {
             invalid={!!emailError}
           />
         </Field>
-        <Field label="Password" htmlFor="login-password" error={passwordError}>
+        <Field label={t('auth.password')} htmlFor="login-password" error={passwordError}>
           <PasswordInput
             id="login-password"
             autoComplete="current-password"
-            placeholder="Your password"
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             invalid={!!passwordError}
@@ -76,7 +78,7 @@ export default function Login() {
         </Field>
         <div className="row-spread text-sm" style={{ marginBottom: 'var(--s4)' }}>
           <span />
-          <Link to="/forgot-password">Forgot password?</Link>
+          <Link to="/forgot-password">{t('auth.forgotPassword')}</Link>
         </div>
         {formError && (
           <div className="alert alert-danger mb-3" role="alert">
@@ -84,11 +86,11 @@ export default function Login() {
           </div>
         )}
         <Button type="submit" block loading={submitting} disabled={submitting}>
-          {submitting ? 'Signing you in…' : 'Sign in'}
+          {submitting ? t('auth.signingIn') : t('auth.signIn')}
         </Button>
       </form>
       <p className="text-center text-sm muted mt-4" style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-        New to ClauseGuard? <Link to="/signup">Create a free account</Link>
+        {t('auth.newHere')} <Link to="/signup">{t('auth.createAccount')}</Link>
       </p>
     </AuthLayout>
   );

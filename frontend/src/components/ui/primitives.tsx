@@ -25,6 +25,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         .filter(Boolean)
         .join(' ')}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...rest}
     >
       {loading && <span className="spinner" aria-hidden="true" />}
@@ -33,6 +34,31 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 Button.displayName = 'Button';
+
+/* ================================================================ Switch */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  id,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  id?: string;
+}) {
+  return (
+    <button
+      type="button"
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className="switch"
+      onClick={() => onChange(!checked)}
+    />
+  );
+}
 
 /* ================================================================ Spinner */
 export function Spinner({ label }: { label?: string }) {

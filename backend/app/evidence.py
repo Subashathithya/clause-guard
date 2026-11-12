@@ -20,7 +20,7 @@ never raises into the caller.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Optional
 
 from app.observability import observability
@@ -31,8 +31,74 @@ __all__ = [
     "category_valid",
     "reference_clause_id",
     "evidence_for_clause",
+    "analysis_clause_evidence",
     "verify_evidence",
+    "verify_analysis_evidence",
+    "payload_clause_evidence",
+    "verify_payload_evidence",
 ]
+
+
+def _risk_band(score: float) -> str:
+    """Mirror the ranker's score -> level thresholds (34 / 67)."""
+    if score >= 67:
+        return "red"
+    if score >= 34:
+        return "yellow"
+    return "green"
+
+
+def _reference_flags(comparison) -> tuple[bool, bool]:
+    """Return ``(reference_present, reference_credible)`` for a comparison."""
+    if comparison is None:
+        return False, False
+    reference = getattr(comparison, "reference_clause", None)
+    if isinstance(comparison, Mapping):
+        reference = comparison.get("reference_clause")
+        similarity = comparison.get("similarity")
+    else:
+        similarity = getattr(comparison, "similarity", None)
+    present = bool(str(reference or "").strip())
+    credible = (
+        present
+        and isinstance(similarity, (int, float))
+        and not isinstance(similarity, bool)
+        and 0.0 <= float(similarity) <= 1.0
+    )
+    return present, credible
+
+
+def _evidence_flags(
+    *,
+    text,
+    category,
+    risk_level,
+    risk_score,
+    comparison,
+) -> dict[str, bool]:
+    """Build the deterministic evidence map shared by every caller."""
+    text_ok = bool(str(text or "").strip())
+    category_ok = str(category or "") in CLAUSE_CATEGORIES
+    level = str(risk_level or "").lower()
+    score_ok = (
+        isinstance(risk_score, (int, float))
+        and not isinstance(risk_score, bool)
+        and 0 <= float(risk_score) <= 100
+    )
+    risk_consistent = bool(
+        score_ok and level in ("red", "yellow", "green") and _risk_band(float(risk_score)) == level
+    )
+    reference_present, reference_credible = _reference_flags(comparison)
+    reference_backed = bool(text_ok and category_ok and reference_credible)
+    return {
+        "text": text_ok,
+        "category": category_ok,
+        "risk_consistent": risk_consistent,
+        "reference_present": reference_present,
+        "reference_credible": reference_credible,
+        "supported": bool(risk_consistent and reference_backed),
+        "reference_backed": reference_backed,
+    }
 
 
 def clause_text_nonempty(clause: Optional[ExtractedClause]) -> bool:
@@ -134,3 +200,69 @@ def verify_evidence(
     except Exception:  # observability must never break the evidence pass
         pass
     return report
+
+
+# --------------------------------------------------------- analyzed-clause API
+# The pipeline ships ``AnalyzedClause`` objects (risk verdict + RAG comparison),
+# not only extracted clauses. The reference-resolution suite above is still the
+# right contract for extraction-time evidence; the helpers below verify the
+# *claims* the analysis actually makes: a real risk band and a real, credible
+# reference when one is cited.
+
+def analysis_clause_evidence(clause) -> dict[str, bool]:
+    """Deterministic evidence flags for one ``AnalyzedClause``-like object."""
+    return _evidence_flags(
+        text=getattr(clause, "text", None),
+        category=getattr(clause, "category", None),
+        risk_level=getattr(clause, "risk_level", None),
+        risk_score=getattr(clause, "risk_score", None),
+        comparison=getattr(clause, "comparison", None),
+    )
+
+
+def payload_clause_evidence(clause: Mapping) -> dict[str, bool]:
+    """Same flags for a stored (JSON) clause payload."""
+    return _evidence_flags(
+        text=clause.get("text"),
+        category=clause.get("category"),
+        risk_level=clause.get("risk_level"),
+        risk_score=clause.get("risk_score"),
+        comparison=clause.get("comparison"),
+    )
+
+
+def _aggregate(by_clause: dict[str, dict[str, bool]]) -> dict[str, object]:
+    supported = sum(1 for flags in by_clause.values() if flags["supported"])
+    reference_backed = sum(1 for flags in by_clause.values() if flags["reference_backed"])
+    report: dict[str, object] = {
+        "total": len(by_clause),
+        "supported": supported,
+        "unsupported": len(by_clause) - supported,
+        "reference_backed": reference_backed,
+        "by_clause": by_clause,
+    }
+    try:
+        observability.evidence(
+            checked=report["total"],
+            supported=report["supported"],
+            unsupported=report["unsupported"],
+        )
+    except Exception:  # noqa: BLE001 — observability must never break analysis
+        pass
+    return report
+
+
+def verify_analysis_evidence(clauses: Iterable) -> dict[str, object]:
+    """Aggregate evidence report for analyzed clauses (IDs only, never text)."""
+    by_clause = {c.clause_id: analysis_clause_evidence(c) for c in clauses}
+    return _aggregate(by_clause)
+
+
+def verify_payload_evidence(clauses: Iterable[Mapping]) -> dict[str, object]:
+    """Aggregate evidence report for stored clause dictionaries."""
+    by_clause: dict[str, dict[str, bool]] = {}
+    for index, clause in enumerate(clauses):
+        clause_id = str(clause.get("clause_id") or f"clause_{index + 1}")
+        by_clause[clause_id] = payload_clause_evidence(clause)
+    return _aggregate(by_clause)
+

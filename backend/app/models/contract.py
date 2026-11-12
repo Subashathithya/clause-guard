@@ -47,6 +47,21 @@ class Contract(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    dates: Mapped[list["ContractDate"]] = relationship(
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    bookmarks: Mapped[list["Bookmark"]] = relationship(
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    checklist_items: Mapped[list["ChecklistItem"]] = relationship(
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<Contract {self.name!r} ({self.id[:8]})>"

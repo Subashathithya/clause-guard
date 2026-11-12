@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell, useAuthGate } from './components/Layout';
 import { Spinner } from './components/ui/primitives';
@@ -16,16 +16,21 @@ import Insights from './pages/Insights';
 import Notifications from './pages/Notifications';
 import SettingsPage from './pages/Settings';
 import NotFound from './pages/NotFound';
+import { useI18n } from './i18n/I18nProvider';
+import AppLockGate from './pwa/AppLockGate';
+import ConnectionBanner from './pwa/ConnectionBanner';
+import UpdateBanner from './pwa/UpdateBanner';
 
 /** Guards the application section: redirects to /login when the backend
  *  requires authentication and the visitor is not signed in. In the default
  *  guest mode it lets everyone through. */
 function ProtectedZone() {
+  const { t } = useI18n();
   const { booting, blocked } = useAuthGate();
   if (booting) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)' }}>
-        <Spinner label="Loading ClauseGuard" />
+        <Spinner label={t('common.loadingApp')} />
       </div>
     );
   }
@@ -34,26 +39,36 @@ function ProtectedZone() {
 }
 
 export default function App() {
+  // Apply the saved "calmer interface" preference on every app load, not just
+  // while the Settings page is open.
+  useEffect(() => {
+    document.documentElement.classList.toggle('calm-mode', localStorage.getItem('cg_calm_mode') === '1');
+  }, []);
+
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
+    <AppLockGate>
+      <ConnectionBanner />
+      <UpdateBanner />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      <Route element={<ProtectedZone />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/analyze" element={<AnalyzePage />} />
-        <Route path="/contracts" element={<ContractsPage />} />
-        <Route path="/contracts/:contractId" element={<ContractWorkspace />} />
-        <Route path="/compare" element={<ComparePage />} />
-        <Route path="/terms-checker" element={<TermsChecker />} />
-        <Route path="/insights" element={<Insights />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
+        <Route element={<ProtectedZone />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/analyze" element={<AnalyzePage />} />
+          <Route path="/contracts" element={<ContractsPage />} />
+          <Route path="/contracts/:contractId" element={<ContractWorkspace />} />
+          <Route path="/compare" element={<ComparePage />} />
+          <Route path="/terms-checker" element={<TermsChecker />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLockGate>
   );
 }

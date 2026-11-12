@@ -3,6 +3,7 @@ import type { Clause } from '../../types';
 import type { Relationship } from '../../lib/clauseRelations';
 import { AttentionBadge } from './AttentionBadge';
 import { Tag } from '../ui/primitives';
+import { useI18n } from '../../i18n/I18nProvider';
 
 export function RelationshipList({
   relationships,
@@ -11,12 +12,14 @@ export function RelationshipList({
   relationships: Relationship[];
   onSelect: (relationship: Relationship) => void;
 }) {
+  const { t } = useI18n();
+
   if (relationships.length === 0) {
     return (
       <div className="empty-state">
         <div className="empty-icon" aria-hidden="true"><Link2 size={26} /></div>
-        <h4>No connected sections yet</h4>
-        <p>As soon as a document has multiple sections that talk to each other, they’ll show up here.</p>
+        <h4>{t('clause.noConnections')}</h4>
+        <p>{t('clause.noConnectionsBody')}</p>
       </div>
     );
   }
@@ -27,7 +30,14 @@ export function RelationshipList({
         <button
           key={rel.id}
           type="button"
-          className="rel-card card card-pad"
+          className={[
+            'rel-card',
+            'card',
+            'card-pad',
+            rel.kind === 'inconsistency' ? 'rel-card-inconsistency' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           onClick={() => onSelect(rel)}
           style={{ textAlign: 'left', width: '100%', cursor: 'pointer' }}
         >
@@ -37,7 +47,13 @@ export function RelationshipList({
             <ClauseChip clause={rel.b} />
           </div>
           <p className="text-sm muted mb-0">{rel.reason}</p>
-          <Tag>{rel.kind === 'category' ? 'Related by topic' : 'Matching wording'}</Tag>
+          <Tag>
+            {rel.kind === 'inconsistency'
+              ? t('clause.inconsistency')
+              : rel.kind === 'category'
+                ? t('clause.relatedByTopic')
+                : t('clause.matchingWording')}
+          </Tag>
         </button>
       ))}
     </div>

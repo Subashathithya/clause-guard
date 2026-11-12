@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { SendHorizonal, Sparkles } from 'lucide-react';
 import type { ChatMessage, ChatResponse } from '../../types';
 import { Button } from '../ui/primitives';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const SUGGESTED = [
-  'What are my main obligations?',
-  'How can this contract be terminated?',
-  'When do payments need to be made?',
-  'What happens if the contract renews?',
-  'Which sections should I read carefully?',
+  'chat.suggest1',
+  'chat.suggest2',
+  'chat.suggest3',
+  'chat.suggest4',
+  'chat.suggest5',
 ];
 
 export function ChatThread({
@@ -18,6 +19,7 @@ export function ChatThread({
   getAnswer: (question: string, history: ChatMessage[]) => Promise<ChatResponse>;
   contextLabel: string;
 }) {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,11 +45,11 @@ export function ChatThread({
         { role: 'assistant', content: res.answer, sources: res.sources },
       ]);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const msg = err instanceof Error ? err.message : t('common.somethingWentWrong');
       setError(msg);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `I couldn't answer that just now. ${msg}` },
+        { role: 'assistant', content: t('chat.couldNotAnswer', { msg }) },
       ]);
     } finally {
       setBusy(false);
@@ -58,17 +60,17 @@ export function ChatThread({
     <div className="chat-thread">
       <div className="ct-hint" aria-hidden="true">
         <Sparkles size={14} />
-        Answers are based only on {contextLabel}.
+        {t('chat.basedOn', { context: contextLabel })}
       </div>
 
       <div className="ct-messages" role="log" aria-live="polite">
         {messages.length === 0 && (
           <div className="ct-welcome">
-            <p>Ask anything about your document. Here are a few ideas to get started:</p>
+            <p>{t('chat.intro')}</p>
             <div className="ct-suggest">
-              {SUGGESTED.map((s) => (
-                <button key={s} type="button" className="suggest-chip" onClick={() => send(s)} disabled={busy}>
-                  {s}
+              {SUGGESTED.map((key) => (
+                <button key={key} type="button" className="suggest-chip" onClick={() => send(t(key))} disabled={busy}>
+                  {t(key)}
                 </button>
               ))}
             </div>
@@ -80,7 +82,7 @@ export function ChatThread({
             {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
               <div className="ct-cites">
                 {m.sources.slice(0, 3).map((s, si) => (
-                  <span key={si} className="cite-chip" title="Section of your document this answer draws on">
+                  <span key={si} className="cite-chip" title={t('chat.source')}>
                     {s.document_name}
                   </span>
                 ))}
@@ -99,7 +101,7 @@ export function ChatThread({
         {busy && (
           <div className="ct-msg msg-assistant">
             <div className="ct-bubble ct-thinking">
-              Reading your document… <span className="spinner" />
+              {t('chat.reading')} <span className="spinner" />
             </div>
           </div>
         )}
@@ -110,9 +112,9 @@ export function ChatThread({
         <input
           className="input"
           type="text"
-          placeholder="Ask about your document…"
+          placeholder={t('chat.inputPlaceholder')}
           value={input}
-          aria-label="Ask a question about your document"
+          aria-label={t('chat.placeholder')}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -122,7 +124,7 @@ export function ChatThread({
           }}
           disabled={busy}
         />
-        <Button onClick={() => send(input)} disabled={busy || !input.trim()} aria-label="Send question">
+        <Button onClick={() => send(input)} disabled={busy || !input.trim()} aria-label={t('chat.send')}>
           <SendHorizonal size={16} />
         </Button>
       </div>

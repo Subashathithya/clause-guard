@@ -27,6 +27,21 @@ os.environ["CHROMA_DIR"] = os.path.join(_tmp, "chroma")
 os.environ["DATABASE_URL"] = "sqlite:///" + os.path.join(_tmp, "clauseguard.db").replace("\\", "/")
 os.environ["GROQ_API_KEY"] = ""  # never make real LLM calls in tests
 os.environ["AUTO_RECONCILE_VECTOR_STORE"] = "true"
+# The sign-in rate limit is a production guard, not a test constraint: the
+# test client shares one IP, so the default limit would leak between test
+# files. The rate limiter's own test lowers the limit explicitly.
+os.environ["AUTH_RATE_LIMIT"] = "1000"
+os.environ["AUTH_RATE_WINDOW_SECONDS"] = "300"
+
+
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """Start every test with empty rate-limit buckets."""
+    from app.core.ratelimit import reset_rate_limits
+
+    reset_rate_limits()
+    yield
+    reset_rate_limits()
 
 
 @pytest.fixture()

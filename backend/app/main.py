@@ -34,27 +34,112 @@ from app.api.routes import (
     history,
     knowledge,
     misc,
+    tracking,
 )
 from app.constants import APP_VERSION
 from app.database import init_db
+from app.settings import DEV_JWT_SECRET, allowed_origins
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("clauseguard")
 
-app = FastAPI(title="ClauseGuard API", version=APP_VERSION)
+# The interactive docs describe every endpoint; they are helpful while
+# developing and unnecessary (and noisy) in production.
+_DOCS = None if settings.IS_PRODUCTION else "/docs"
 
-allowed_origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="ClauseGuard API",
+    version=APP_VERSION,
+    docs_url=_DOCS,
+    redoc_url=None if settings.IS_PRODUCTION else "/redoc",
+    openapi_url=None if settings.IS_PRODUCTION else "/openapi.json",
 )
+
+# --- CORS -----------------------------------------------------------------
+# Phase 7: an explicit origin list replaces the old wildcard. Credentials are
+# only ever allowed for origins the operator named.
+_origins = allowed_origins()
+if "*" in _origins:
+    logger.warning(
+        "ALLOWED_ORIGINS contains '*' - browser credentials are disabled for CORS."
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+        max_age=600,
+    )
+logger.info("CORS origins: %s", ", ".join(_origins) or "(none configured)")
+
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    """Baseline security headers on every response."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()"
+    )
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if settings.IS_PRODUCTION:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
+@app.middleware("http")
+async def _limit_request_size(request, call_next):
+    """Reject oversized bodies before they are read into memory."""
+    raw_length = request.headers.get("content-length")
+    if raw_length and raw_length.isdigit():
+        max_bytes = (settings.MAX_UPLOAD_MB + 1) * 1024 * 1024
+        if int(raw_length) > max_bytes:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"Request is larger than {settings.MAX_UPLOAD_MB} MB."},
+            )
+    return await call_next(request)
+
+
+def _check_production_config() -> None:
+    """Refuse to start a production instance with unsafe settings."""
+    problems: list[str] = []
+    if settings.JWT_SECRET == DEV_JWT_SECRET:
+        problems.append("JWT_SECRET is still the development default")
+    elif len(settings.JWT_SECRET) < 32:
+        problems.append("JWT_SECRET must be at least 32 characters")
+    if not settings.ALLOWED_ORIGINS.strip():
+        problems.append("ALLOWED_ORIGINS must list the frontend origins")
+    if not settings.REQUIRE_AUTH:
+        problems.append("REQUIRE_AUTH must be enabled")
+    if not settings.GROQ_API_KEY:
+        problems.append("GROQ_API_KEY is not set")
+    if problems:
+        raise RuntimeError(
+            "Refusing to start with APP_ENV=production: " + "; ".join(problems)
+        )
 
 
 @app.on_event("startup")
 def _startup() -> None:
+    if settings.IS_PRODUCTION:
+        _check_production_config()
+        logger.info("Production posture verified (auth required, explicit origins).")
     init_db()
     # Vector-store reconcile: legacy collections created with the default l2
     # (Euclidean) HNSW space make the 0..1 similarity thresholds saturate at 0.
@@ -87,6 +172,7 @@ for _router in (
     knowledge.router,
     history.router,
     misc.router,
+    tracking.router,
 ):
     app.include_router(_router)
 
