@@ -19,7 +19,9 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', 'build');
 const PORT = Number(process.argv[2] || process.env.PORT || 3000);
-const HOST = process.env.HOST || '127.0.0.1';
+// Bind to every interface: WebAuthn (the fingerprint app lock) only
+// accepts "localhost" as its relying-party id, never the 127.0.0.1 address.
+const HOST = process.env.HOST || '0.0.0.0';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -78,5 +80,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Serving ${ROOT} at http://${HOST}:${PORT}`);
+  console.log(`Serving ${ROOT}`);
+  console.log(`  http://localhost:${PORT}   <- use this one for the app lock`);
+  console.log(`  http://127.0.0.1:${PORT}`);
 });

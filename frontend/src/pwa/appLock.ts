@@ -10,6 +10,9 @@
  * needed to unlock. Clearing site data for the app also removes the lock.
  */
 const CREDENTIAL_KEY = 'cg_app_lock_credential';
+
+/** The last human-readable reason a lock attempt failed. */
+let lastLockError = '';
 const ENABLED_KEY = 'cg_app_lock_enabled';
 const UNLOCKED_KEY = 'cg_app_lock_unlocked';
 
@@ -30,6 +33,31 @@ function fromB64url(value: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+/**
+ * Turn a browser error into something a person can act on.
+ *
+ * The most common one is "invalid domain": WebAuthn only accepts
+ * "localhost" (or the real web address of the deployed site) as the
+ * relying-party id, so opening the app at 127.0.0.1 can never work.
+ */
+function friendlyLockError(err: unknown): string {
+  const name = err instanceof Error ? err.name : '';
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  if (/invalid domain/i.test(message) || name === 'SecurityError') {
+    return (
+      'Open ClauseGuard at localhost (or at the app\u2019s real web address) to use the ' +
+      'fingerprint lock — a raw IP address is not accepted by the browser.'
+    );
+  }
+  if (name === 'NotAllowedError') {
+    return 'No fingerprint or face was detected. Try again, or use your device PIN.';
+  }
+  if (name === 'AbortError') {
+    return 'The fingerprint check was cancelled.';
+  }
+  return 'This device could not set up the fingerprint lock.';
+}
+
 /** True when this browser can ask for a fingerprint, face or device PIN. */
 export function isAppLockSupported(): boolean {
   if (typeof window === 'undefined') return false;
@@ -39,6 +67,29 @@ export function isAppLockSupported(): boolean {
     typeof navigator.credentials.create === 'function' &&
     typeof navigator.credentials.get === 'function'
   );
+}
+
+/**
+ * True when this *device* can actually verify the user.
+ *
+ * The WebAuthn API can exist on a machine with no fingerprint, face or PIN
+ * enrolled — the browser then has no way to check who is holding it. The
+ * platform authenticator check is the honest one, so the setting is only
+ * offered where it can work.
+ */
+export async function hasPlatformAuthenticator(): Promise<boolean> {
+  if (!isAppLockSupported()) return false;
+  try {
+    if (
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable ===
+      'function'
+    ) {
+      return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    }
+  } catch (err) {
+    return false;
+  }
+  return false;
 }
 
 export function isAppLockEnabled(): boolean {
@@ -74,7 +125,9 @@ export async function enableAppLock(): Promise<void> {
     },
   })) as PublicKeyCredential | null;
 
-  if (!credential) throw new Error('The lock could not be set up on this device.');
+  if (!credential) {
+    throw new Error(friendlyLockError(new Error('no credential')));
+  }
   localStorage.setItem(CREDENTIAL_KEY, b64url(credential.rawId));
   localStorage.setItem(ENABLED_KEY, '1');
 }
@@ -103,6 +156,7 @@ export async function unlockApp(): Promise<boolean> {
     sessionStorage.setItem(UNLOCKED_KEY, '1');
     return true;
   } catch (err) {
+    lastLockError = friendlyLockError(err);
     return false;
   }
 }
@@ -111,6 +165,11 @@ export async function unlockApp(): Promise<boolean> {
 export function isUnlockedForSession(): boolean {
   if (typeof sessionStorage === 'undefined') return false;
   return sessionStorage.getItem(UNLOCKED_KEY) === '1';
+}
+
+/** The last human-readable reason a lock attempt failed (empty if none). */
+export function lockErrorMessage(): string {
+  return lastLockError;
 }
 
 export function lockNow(): void {

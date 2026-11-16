@@ -10,8 +10,8 @@ import { useInstallPrompt } from '../pwa/useInstallPrompt';
 import {
   disableAppLock,
   enableAppLock,
+  hasPlatformAuthenticator,
   isAppLockEnabled,
-  isAppLockSupported,
 } from '../pwa/appLock';
 import { useI18n } from '../i18n/I18nProvider';
 import { LOCALES, LOCALE_INFO, type Locale } from '../i18n/locales';
@@ -51,7 +51,9 @@ export default function SettingsPage() {
   const installPrompt = useInstallPrompt();
   const { t, locale, setLocale } = useI18n();
   const [lockEnabled, setLockEnabled] = useState<boolean>(() => isAppLockEnabled());
-  const lockSupported = isAppLockSupported();
+  // The device has to be able to verify the user (fingerprint, face or PIN)
+  // before the switch is offered at all.
+  const [lockSupported, setLockSupported] = useState(false);
 
   const toggleLock = async (next: boolean) => {
     try {
@@ -68,6 +70,16 @@ export default function SettingsPage() {
       toast.push(err instanceof Error ? err.message : t('settings.lockUnavailable'), 'error');
     }
   };
+
+  useEffect(() => {
+    let alive = true;
+    void hasPlatformAuthenticator().then((ok) => {
+      if (alive) setLockSupported(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('cg_calm_mode', calmMode ? '1' : '0');

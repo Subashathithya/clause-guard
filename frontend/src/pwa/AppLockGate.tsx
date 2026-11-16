@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Fingerprint, ShieldAlert } from 'lucide-react';
 import { useI18n } from '../i18n/I18nProvider';
-import { isAppLockEnabled, isUnlockedForSession, unlockApp } from './appLock';
+import { isAppLockEnabled, isUnlockedForSession, lockErrorMessage, unlockApp } from './appLock';
 import { Button } from '../components/ui/primitives';
 
 /**
@@ -40,7 +40,7 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
         <p className="muted">{t('settings.lockUnlockBody')}</p>
         {failed && (
           <p className="text-sm" style={{ color: 'var(--danger-text)' }}>
-            {t('settings.lockFailed')}
+            {lockErrorMessage() || t('settings.lockFailed')}
           </p>
         )}
         <Button onClick={() => void attempt()} loading={checking}>
