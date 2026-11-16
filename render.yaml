@@ -46,6 +46,9 @@ services:
       - key: CHROMA_DIR
         # Ephemeral on the free tier: the vectors are rebuilt at startup.
         value: /tmp/chroma_db
+      - key: SEED_DEMO_ON_STARTUP
+        # The demo site has no shell access, so it seeds itself on boot.
+        value: "true"
     # After the first deploy, open the Render Shell once and run:
     #   python scripts/seed_demo.py
     # so the hosted app has demo contracts in both the guest and demo scopes.

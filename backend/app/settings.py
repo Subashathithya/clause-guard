@@ -106,6 +106,9 @@ class Settings:
     FIREBASE_CREDENTIALS: str = os.getenv("FIREBASE_CREDENTIALS", "")
     FIREBASE_STORAGE_BUCKET: str = os.getenv("FIREBASE_STORAGE_BUCKET", "")
 
+    # Seed the demo workspace on startup (the demo site has no shell access).
+    SEED_DEMO_ON_STARTUP: bool = _env_flag("SEED_DEMO_ON_STARTUP", False)
+
     # --- Business / product ---
     FREE_TIER_ANALYSES_PER_MONTH: int = int(os.getenv("FREE_TIER_ANALYSES_PER_MONTH", "5"))
     PREMIUM_PRICE_INR: int = os.getenv("PREMIUM_PRICE_INR", "500")

@@ -116,6 +116,29 @@ async def _limit_request_size(request, call_next):
     return await call_next(request)
 
 
+def _seed_demo_workspace() -> None:
+    """Populate the demo workspace at startup (idempotent).
+
+    The demo site has no shell access, so the seeder runs itself on boot.
+    """
+    try:
+        import importlib.util
+        import pathlib
+
+        path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "seed_demo.py"
+        if not path.exists():
+            return
+        spec = importlib.util.spec_from_file_location("seed_demo", path)
+        if spec is None or spec.loader is None:
+            return
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        count = module.seed(reset=False)
+        logger.info("Demo workspace ready: %s document(s)", count)
+    except Exception as exc:  # noqa: BLE001 - seeding must never stop the API
+        logger.warning("Demo seeding skipped: %s", exc)
+
+
 def _check_production_config() -> None:
     """Refuse to start a production instance with unsafe settings."""
     problems: list[str] = []
@@ -141,6 +164,8 @@ def _startup() -> None:
         _check_production_config()
         logger.info("Production posture verified (auth required, explicit origins).")
     init_db()
+    if settings.SEED_DEMO_ON_STARTUP:
+        _seed_demo_workspace()
     # Vector-store reconcile: legacy collections created with the default l2
     # (Euclidean) HNSW space make the 0..1 similarity thresholds saturate at 0.
     # Recreate any non-cosine collection from the relational store (cosine space)
