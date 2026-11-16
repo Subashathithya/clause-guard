@@ -32,25 +32,52 @@ export function rememberDismissed(): void {
   localStorage.setItem(DISMISS_KEY, '1');
 }
 
+/**
+ * How the user installs the app in *this* browser.
+ *
+ * Only Chrome and Edge fire an install event; Safari on iOS and every other
+ * browser need a few manual steps instead. The instructions are chosen from
+ * the browser actually in use, so the text is always actionable.
+ */
+export type InstallMethod = 'prompt' | 'ios' | 'chrome' | 'other';
+
+export function detectInstallMethod(hasPrompt: boolean): InstallMethod {
+  if (hasPrompt) return 'prompt';
+  if (isIosBrowser()) return 'ios';
+  if (typeof navigator === 'undefined') return 'other';
+  const ua = navigator.userAgent;
+  if (/Edg\//i.test(ua)) return 'chrome';
+  if (/Chrome|Chromium/i.test(ua)) return 'chrome';
+  return 'other';
+}
+
 export interface InstallPromptState {
   /** The browser offered an install button we can trigger. */
   canInstall: boolean;
-  /** iOS Safari: show the "Share → Add to Home Screen" steps instead. */
-  needsManualSteps: boolean;
+  /** How this browser installs the app. */
+  method: InstallMethod;
+  /** True when the steps for this browser are expanded. */
+  showSteps: boolean;
   installed: boolean;
   dismissed: boolean;
   install: () => Promise<void>;
+  toggleSteps: () => void;
   dismiss: () => void;
 }
 
 /**
  * Tracks the browser's install prompt so the app can offer "add to home
  * screen" at a sensible moment instead of hijacking the first visit.
+ *
+ * The offer is always visible (unless the app is already installed or the
+ * user dismissed it): browsers that cannot show a native prompt still get
+ * the steps for their own browser.
  */
 export function useInstallPrompt(): InstallPromptState {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState<boolean>(() => isRunningAsInstalledApp());
   const [dismissed, setDismissed] = useState<boolean>(() => isDismissed());
+  const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => {
     const onBeforeInstall = (event: Event) => {
@@ -79,6 +106,8 @@ export function useInstallPrompt(): InstallPromptState {
     setDeferred(null);
   }, [deferred]);
 
+  const toggleSteps = useCallback(() => setShowSteps((v) => !v), []);
+
   const dismiss = useCallback(() => {
     rememberDismissed();
     setDismissed(true);
@@ -86,10 +115,12 @@ export function useInstallPrompt(): InstallPromptState {
 
   return {
     canInstall: Boolean(deferred),
-    needsManualSteps: !deferred && isIosBrowser() && !installed,
+    method: detectInstallMethod(Boolean(deferred)),
+    showSteps,
     installed,
     dismissed,
     install,
+    toggleSteps,
     dismiss,
   };
 }

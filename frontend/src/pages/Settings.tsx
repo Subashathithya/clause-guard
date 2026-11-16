@@ -187,23 +187,38 @@ export default function SettingsPage() {
                   ? t('settings.installedBody')
                   : installPrompt.canInstall
                     ? t('settings.installHelpAvailable')
-                    : installPrompt.needsManualSteps
-                      ? t('settings.installHelpManual')
-                      : t('settings.installHelp')}
+                    : t('pwa.installBodyNoPrompt')}
               </p>
+              {installPrompt.showSteps && !installPrompt.installed && (
+                <p className="install-steps text-xs muted">
+                  {t(
+                    installPrompt.method === 'ios'
+                      ? 'pwa.installStepsIos'
+                      : installPrompt.method === 'chrome'
+                        ? 'pwa.installStepsChrome'
+                        : 'pwa.installStepsOther',
+                  )}
+                </p>
+              )}
             </div>
             <div className="row" style={{ gap: 8 }}>
               {installPrompt.installed && <Badge tone="success">{t('settings.installed')}</Badge>}
-              {installPrompt.canInstall && (
-                <Button size="sm" onClick={() => void installPrompt.install()}>
-                  <Download size={14} /> {t('settings.installApp')}
-                </Button>
-              )}
-              {installPrompt.needsManualSteps && (
-                <span className="text-xs faint row-inline" style={{ gap: 5 }}>
-                  <Share size={13} aria-hidden="true" /> {t('settings.addToHomeScreen')}
-                </span>
-              )}
+              {!installPrompt.installed &&
+                (installPrompt.canInstall ? (
+                  <Button size="sm" onClick={() => void installPrompt.install()}>
+                    <Download size={14} /> {t('common.install')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={installPrompt.toggleSteps}
+                    aria-expanded={installPrompt.showSteps}
+                  >
+                    {installPrompt.method === 'ios' ? <Share size={14} /> : <Download size={14} />}{' '}
+                    {t('pwa.howToInstall')}
+                  </Button>
+                ))}
             </div>
           </div>
 

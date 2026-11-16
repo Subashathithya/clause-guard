@@ -744,6 +744,11 @@ export const en = {
     offline: 'You are offline. Pages you already opened keep working.',
     backOnline: 'You are back online.',
     installRegion: 'Install ClauseGuard',
+    installBodyNoPrompt: 'Open it like an app — one tap from your home screen, and it opens straight to your dashboard.',
+    howToInstall: 'How to install',
+    installStepsIos: 'In Safari, tap the Share button, then choose “Add to Home Screen”.',
+    installStepsChrome: 'Open the browser menu (⋮) and choose “Install app” — or use the install icon in the address bar.',
+    installStepsOther: 'Open this page in Chrome or Edge on your phone or computer, then use the browser menu to install it.',
   },
   footer: {
     disclaimer:

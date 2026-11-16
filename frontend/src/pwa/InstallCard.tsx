@@ -1,19 +1,29 @@
-import { Download, Smartphone } from 'lucide-react';
+import { Download, Share, Smartphone } from 'lucide-react';
 import { Button } from '../components/ui/primitives';
-import { useInstallPrompt } from './useInstallPrompt';
 import { useI18n } from '../i18n/I18nProvider';
+import { useInstallPrompt } from './useInstallPrompt';
 
 /**
- * Offers "add to home screen" without hijacking the first visit: the card
- * only appears when the browser actually offers an install button (or, on
- * iOS, when the manual steps are needed) and it can be dismissed for good.
+ * Offers "add to home screen".
+ *
+ * Chrome and Edge can show their own install dialog, so the button triggers
+ * it. Every other browser (and browsers where the install event never
+ * arrives) gets the steps for that browser instead — the offer is never
+ * silently missing.
  */
 export default function InstallCard({ placement = 'app' }: { placement?: 'app' | 'landing' }) {
   const { t } = useI18n();
-  const { canInstall, needsManualSteps, installed, dismissed, install, dismiss } = useInstallPrompt();
+  const { canInstall, method, showSteps, installed, dismissed, install, toggleSteps, dismiss } =
+    useInstallPrompt();
 
   if (installed || dismissed) return null;
-  if (!canInstall && !needsManualSteps) return null;
+
+  const stepsKey =
+    method === 'ios'
+      ? 'pwa.installStepsIos'
+      : method === 'chrome'
+        ? 'pwa.installStepsChrome'
+        : 'pwa.installStepsOther';
 
   return (
     <div className={`install-card install-card-${placement}`} role="region" aria-label={t('pwa.installRegion')}>
@@ -23,19 +33,24 @@ export default function InstallCard({ placement = 'app' }: { placement?: 'app' |
       <div className="install-body">
         <strong>{t('pwa.installTitle')}</strong>
         {canInstall ? (
-          <p className="text-sm muted mb-0">
-            {t('pwa.installBody')}
-          </p>
+          <p className="text-sm muted mb-0">{t('pwa.installBody')}</p>
         ) : (
-          <p className="text-sm muted mb-0">
-            {t('pwa.installManual')}
-          </p>
+          <p className="text-sm muted mb-0">{t('pwa.installBodyNoPrompt')}</p>
+        )}
+        {showSteps && (
+          <ol className="install-steps text-sm muted">
+            <li>{t(stepsKey)}</li>
+          </ol>
         )}
       </div>
       <div className="install-actions">
-        {canInstall && (
+        {canInstall ? (
           <Button size="sm" onClick={() => void install()}>
             <Download size={14} /> {t('common.install')}
+          </Button>
+        ) : (
+          <Button size="sm" variant="secondary" onClick={toggleSteps} aria-expanded={showSteps}>
+            {method === 'ios' ? <Share size={14} /> : <Download size={14} />} {t('pwa.howToInstall')}
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={dismiss}>

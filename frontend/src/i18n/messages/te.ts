@@ -750,6 +750,11 @@ export const te: Messages = {
     offline: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. మీరు ఇంతకు ముందు తెరిచిన పేజీలు పనిచేస్తాయి.',
     backOnline: 'మీరు మళ్లీ ఆన్‌లైన్‌లో ఉన్నారు.',
     installRegion: 'ClauseGuard ఇన్‌స్టాల్ చేయండి',
+    installBodyNoPrompt: 'ఒక యాప్‌లా తెరవండి — హోమ్ స్క్రీన్ నుంచి ఒక్క టాప్, అది మీ డాష్‌బోర్డ్‌లోనే తెరుచుకుంటుంది.',
+    howToInstall: 'ఎలా ఇన్‌స్టాల్ చేయాలి',
+    installStepsIos: 'Safariలో Share బటన్ నొక్కి, “Add to Home Screen” ఎంచుకోండి.',
+    installStepsChrome: 'బ్రౌజర్ మెనూ (⋮) తెరిచి “Install app” ఎంచుకోండి — లేదా చిరునామా పట్టికలోని ఇన్‌స్టాల్ చిహ్నాన్ని ఉపయోగించండి.',
+    installStepsOther: 'ఈ పేజీని మీ ఫోన్ లేదా కంప్యూటర్‌లో Chrome లేదా Edgeలో తెరిచి, బ్రౌజర్ మెనూ నుంచి ఇన్‌స్టాల్ చేయండి.',
   },
   footer: {
     disclaimer:

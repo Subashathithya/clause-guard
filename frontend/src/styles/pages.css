@@ -554,6 +554,7 @@
 .install-body { flex: 1; min-width: 0; }
 .install-body strong { display: block; margin-bottom: 2px; font-size: var(--text-sm); }
 .install-actions { display: flex; gap: var(--s2); flex: none; align-items: center; }
+.install-steps { margin: 6px 0 0; padding-left: 18px; line-height: 1.5; }
 
 .pwa-banner {
   position: fixed; left: 50%; transform: translateX(-50%);

@@ -744,6 +744,11 @@ export const hi: Messages = {
     offline: 'आप ऑफ़लाइन हैं। पहले खुले हुए पेज चलते रहते हैं।',
     backOnline: 'आप दोबारा ऑनलाइन हैं।',
     installRegion: 'ClauseGuard इंस्टॉल करें',
+    installBodyNoPrompt: 'किसी ऐप की तरह खोलें — होम स्क्रीन से एक टैप, और यह सीधे आपके डैशबोर्ड पर खुलेगा।',
+    howToInstall: 'कैसे इंस्टॉल करें',
+    installStepsIos: 'Safari में शेयर बटन दबाएँ, फिर “Add to Home Screen” चुनें।',
+    installStepsChrome: 'ब्राउज़र मेन्यू (⋮) खोलें और “Install app” चुनें — या पता पट्टी में उपलब्ध इंस्टॉल आइकन का उपयोग करें।',
+    installStepsOther: 'इस पेज को अपने फ़ोन या कंप्यूटर पर Chrome या Edge में खोलें, फिर ब्राउज़र मेन्यू से इंस्टॉल करें।',
   },
   footer: {
     disclaimer:
